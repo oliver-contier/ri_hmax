@@ -26,7 +26,10 @@ def hmax_filelist(filelist):
 
         # absolute path names
         fname_abp = abp(fname)
-        outname_abp = fname_abp.replace('orig', 'results') + '.ascii'
+        if 'orig' in fname_abp:
+            outname_abp = fname_abp.replace('orig', 'results') + '.ascii'
+        elif 'sim' in fname_abp:
+            outname_abp = fname_abp.replace('sim', 'results') + '.ascii'
 
         # call function
         if not os.path.exists(outname_abp):
