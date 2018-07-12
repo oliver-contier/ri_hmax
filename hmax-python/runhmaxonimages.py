@@ -1,46 +1,67 @@
+"""
+Modified version of the python HMAX implementation by Thomas Miconiself.
+Original version was retrieved from https://scholar.harvard.edu/tmiconi/pages/code on July 10th 2018self.
+"""
+
+
 import traceback
 import sys
 import cPickle
 import hmax
-import scipy.misc
+from imageio import imread
 import numpy
 import time
 
-reload(hmax) 
+reload(hmax)
 
-print "Loading all filters" 
+print "Loading all filters"
 (v1f, s2f, s2bfAllSizes, s3f) = hmax.loadallfilts()
 
-if len(sys.argv) < 2:
-    raise StandardError("Pass the filenames of the images as arguments")
 
+"""
+Parse command line arguments
+"""
 
-for filename in sys.argv[1:]:
-    try:
+print('parsing command line arguments')
 
-        print "Processing image "+filename
-        img = scipy.misc.imread(filename)
-# If there are more than 2 dimensions, the 3rd one (presumably RGB) is 
+import argparse
+parser = argparse.ArgumentParser(prog='runhmaxonimages.py',
+                                 description=__doc__)
+parser.add_argument('-i', required=True, dest='infile')
+parser.add_argument('-o', required=True, dest='outfile')
+args = parser.parse_args()
+infile = args.infile
+outfile = args.outfile
+
+# assert input and output names
+if not infile or not outfile:
+    raise IOError('Input and/or output not specified.\n')
+if not outfile.split('.')[-1] == 'ascii':
+    raise IOError('Output file name must end in ".ascii"')
+
+"""
+Actual HMAXing
+"""
+
+print "Processing image %s" % infile
+img = imread(infile)
+
+# If there are more than 2 dimensions, the 3rd one (presumably RGB) is
 # averaged away to obtain a 2D grayscale image:
-        if len(img.shape) > 2:
-            img = numpy.mean(img, axis=2)
+if len(img.shape) > 2:
+    img = numpy.mean(img, axis=2)
 
-        t = time.time()
-        (C2boutAllSizes, C3out) = hmax.hmax(img, v1f, s2f, s2bfAllSizes, s3f)
-        print "Time elapsed:", (time.time()-t)
-        with open(filename+'.hmaxout.ascii', 'wb') as f:
-            f.writelines([str(x)+"\n" for EachRFsize in C2boutAllSizes for x in EachRFsize])
-            f.writelines([str(x)+"\n" for x in C3out])
-    
-    except Exception as e:
-        print e
-        traceback.print_exc()
-        print "Unexpected error"
+t = time.time()
+(C2boutAllSizes, C3out) = hmax.hmax(img, v1f, s2f, s2bfAllSizes, s3f)
+print "Time elapsed:", (time.time()-t)
 
-        
-# Old version (cPickle format):
-#with open(filename+'.hmaxout.cpickle', 'wb') as f:
-   #cPickle.dump(C2boutAllSizes, f, protocol=-1)
-   #cPickle.dump(C3out, f, protocol=-1)
+"""
+Write output
+"""
+
+with open(outfile, 'wb') as f:
+    f.writelines([str(x)+"\n" for EachRFsize in C2boutAllSizes for x in EachRFsize])
+    f.writelines([str(x)+"\n" for x in C3out])
 
 
+print('Produced output: %s' % outfile)
