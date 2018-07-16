@@ -2,7 +2,7 @@
 
 
 """
-Crop percept images from Lihuis experiment and take the first frame to remove time dimension
+Crop and resize percept images from Lihuis experiment to fit the original.
 """
 
 
@@ -15,6 +15,7 @@ import numpy as np
 
 def crop_im(im_fname, out_fname, downsample=True):
     """
+    DEPRECATED since Lihui gave me the correct stimuli.
     Load image, remove white margin, and save to file.
     Use .png extension to avoid compression.
     """
@@ -35,6 +36,16 @@ def crop_im(im_fname, out_fname, downsample=True):
 
     sio.imsave(out_fname, cropped)
 
+
+def just_resize(im_fname, out_fname):
+    """
+    Since Lihui now gave me the correct stimuli, I'm just gonna resize the stimuli to 104x104
+    """
+    im = sio.imread(im_fname)
+    res = skresize(im, (104,104))
+    sio.imsave(out_fname, res)
+
+
 print('glob files')
 
 # List of Lihui's files (absolute paths)
@@ -50,4 +61,4 @@ print('start loop')
 
 # Loop through input and output names
 for inf, outf in zip(flist, outlist):
-    crop_im(inf, outf)
+    just_resize(inf, outf)
