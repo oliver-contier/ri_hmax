@@ -3,3 +3,4 @@
 *.ascii
 *.ipynb_checkpoints
 *.pyc
+*.nosync
