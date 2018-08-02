@@ -6,3 +6,4 @@
 *.nosync
 *filters.dat
 *.icloud
+*.Rhistory
