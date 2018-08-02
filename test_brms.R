@@ -20,15 +20,26 @@ discmodel1 <- brm(Answer ~ Block*ED + (Block*ED|sub) + (1|item_id),
 
 #save.image(file = "disc_maxmodel.RData", version = NULL, safe = TRUE)
 #load("~/Desktop/hmax/python/compare_images/disc_maxmodel.RData", ex <- new.env())
-# discmodel1 <- ex$discmodel1
+#discmodel1 <- ex$discmodel1
 
 summary(discmodel1)
 
 #TODO:
 # make block an unordered factor in data_exploration.ipynb
-6
+
 #TODO: visualize
 plot(discmodel1, ask = FALSE)
 pp_check(discmodel1)  # check posterior predictions
 plot(marginal_effects(discmodel1), ask = FALSE)  # plot marginal predictions
 
+# TODO: Interpraetierarkeit des outputs verbessern
+# kontinuierliche praediktoren zentrieren
+# Effektkodierung für kategorielle Prädiktoren
+
+# TODO: hypothesis testing
+# hypothesis function to assess contrasts
+# reduce model complexity and compare with LOO
+
+# TODO: outlier weighting?
+# There's no way to model the influence of outliers in the predictors (only the response)
+# Hence, compare models based on data including and excluding outliers.
