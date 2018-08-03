@@ -25,9 +25,6 @@ discmodel1 <- ex$discmodel1
 
 summary(discmodel1)
 
-#TODO:
-# make block an unordered factor in data_exploration.ipynb
-
 #TODO: visualize
 plot(discmodel1, ask = FALSE)
 pp_check(discmodel1)  # check posterior predictions
