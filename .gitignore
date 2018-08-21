@@ -7,5 +7,6 @@
 *filters.dat
 *.icloud
 *.Rhistory
+*.RData
 *Lihui_Data*
 *.p
