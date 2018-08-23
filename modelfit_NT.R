@@ -20,7 +20,11 @@ answer_nullmodel <- brm(Answer ~ Block + (Block|sub) + (1|item_id) + (1|task),
 
 print('fitting newNT model')
 # newfound typicality
-answer_newNT <- brm(Answer ~ newNT_cent*Block + (newNT_cent*Block|sub) + (1|item_id) + (1|task), data = df, family = bernoulli, file = "answer_newNT, chains = 2, cores = 2)
+answer_newNT <- brm(Answer ~ newNT_cent*Block + (newNT_cent*Block|sub) + (1|item_id) + (1|task),
+                    data = df,
+                    family = bernoulli,
+                    file = "answer_newNT",
+                    chains = 2, cores = 2)
 
 print('fitting conNT model')
 # conserved typicality
