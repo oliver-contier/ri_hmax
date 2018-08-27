@@ -45,7 +45,7 @@ answer_nullmodel4 <- brm(Answer ~ Block*task + (Block*task|sub) + (item_id|task)
 
 print('fitting newNT model')
 # newfound typicality
-answer_newNT <- brm(Answer ~ newNT_cent*Block + (newNT_cent*Block|sub) + (1|item_id) + (1|task),
+answer_newNT <- brm(Answer ~ newNT_cent*Block*task + (newNT_cent*Block*task|sub) + (1|item_id),
                     data = df,
                     family = bernoulli,
                     file = "answer_newNT",
@@ -53,7 +53,7 @@ answer_newNT <- brm(Answer ~ newNT_cent*Block + (newNT_cent*Block|sub) + (1|item
 
 print('fitting conNT model')
 # conserved typicality
-answer_conNT <- brm(Answer ~ conNT_cent*Block + (conNT_cent*Block|sub) + (1|item_id) + (1|task),
+answer_conNT <- brm(Answer ~ conNT_cent*Block*task + (conNT_cent*Block*task|sub) + (1|item_id),
                     data = df,
                     family = bernoulli,
                     file = "answer_conNT",
@@ -61,7 +61,7 @@ answer_conNT <- brm(Answer ~ conNT_cent*Block + (conNT_cent*Block|sub) + (1|item
 
 print('fitting bothNT model')
 # newfound and conserved typicality
-answer_bothNT <- brm(Answer ~ conNT_cent*newNT_cent*Block + (conNT_cent*newNT_cent*Block|sub) + (1|item_id) + (1|task),
+answer_bothNT <- brm(Answer ~ newNT_cent*conNT_cent*Block*task + (newNT_cent*conNT_cent*Block*task|sub) + (1|item_id),
                     data = df,
                     family = bernoulli,
                     file = "answer_bothNT",
