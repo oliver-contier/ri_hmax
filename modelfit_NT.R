@@ -1,3 +1,8 @@
+# This script is meant to run the model fitting procedure on our computing cluster.
+# The model setup is identical to the ones found in brms_analysis.ipynb, which
+# loads the saved .rds files to visualize and analyze the reslts.
+
+
 print('load brms')
 library(brms)
 
@@ -11,8 +16,7 @@ head(df)
 str(df)
 
 print('fitting nullmodel1')
-# Null model
-answer_nullmodel <- brm(Answer ~ Block + (Block|sub) + (1|item_id) + (1|task),
+answer_nullmodel <- brm(Answer ~ ec_b2 + ec_b3 + task + task_order + (ec_b2 + ec_b3 + task + task_order|sub) + (1|item_id),
                         data=df,
                         family=bernoulli,
                         file="answer_nullmodel",
@@ -20,8 +24,7 @@ answer_nullmodel <- brm(Answer ~ Block + (Block|sub) + (1|item_id) + (1|task),
                         chains=2, cores=2)
 
 print('fitting nullmodel2')
-# Null model with varying slope for Block over tasks and over subjects
-answer_nullmodel2 <- brm(Answer ~ Block + (Block|sub) + (Block|task) + (1|item_id),
+answer_nullmodel2 <- brm(Answer ~ ec_b2 + ec_b3 + task + ec_b2:task + ec_b3:task + task_order + (1|ec_b2 + ec_b3 + task + ec_b2:task + ec_b3:task + task_order) + (1|item_id),
                         data=df,
                         family=bernoulli,
                         file="answer_nullmodel2",
@@ -29,8 +32,7 @@ answer_nullmodel2 <- brm(Answer ~ Block + (Block|sub) + (Block|task) + (1|item_i
                         chains=2, cores=2)
 
 print('fitting nullmodel3')
-# Null model with random slope for block and task as well as their interaction across subjects
-answer_nullmodel3 <- brm(Answer ~ Block*task + (Block*task|sub) + (1|item_id),
+answer_nullmodel3 <- brm(Answer ~ ec_b2 + ec_b3 + task_order + ec_b2:task_order + ec_b3:task_order + task + (1|ec_b2 + ec_b3 + task_order + ec_b2:task_order + ec_b3:task_order + task) + (1|item_id),
                         data=df,
                         family=bernoulli,
                         file="answer_nullmodel3",
@@ -38,39 +40,52 @@ answer_nullmodel3 <- brm(Answer ~ Block*task + (Block*task|sub) + (1|item_id),
                         chains=2, cores=2)
 
 print('fitting nullmodel4')
-# Null model equivalent to nullmodel3, but with random item slope over tasks.
-answer_nullmodel4 <- brm(Answer ~ Block*task + (Block*task|sub) + (item_id|task),
+answer_nullmodel4 <- brm(Answer ~ ec_b2 + ec_b3 + task + task_order + task:task_order + (ec_b2 + ec_b3 + task + task_order + task:task_order|sub) + (1|item_id),
                         data=df,
                         family=bernoulli,
                         file="answer_nullmodel4",
                         sample_prior=TRUE, save_all_pars=TRUE,
                         chains=2, cores=2,
-                        inits=0)  #
+                        inits=0)
+
+print('fitting nullmodel5')
+answer_nullmodel5 <- brm(Answer ~ ec_b2 + ec_b3 + task + task_order + task:task_order + ec_b2:task + ec_b3:task + ec_b2:task:task_order + ec_b3:task:task_order + (ec_b2 + ec_b3 + task + task_order + task:task_order + ec_b2:task + ec_b3:task + ec_b2:task:task_order + ec_b3:task:task_order|sub) + (1|item_id),
+                        data=df,
+                        family=bernoulli,
+                        file="answer_nullmodel5",
+                        sample_prior=TRUE, save_all_pars=TRUE,
+                        chains=2, cores=2,
+                        inits=0)
 
 
-print('fitting newNT model')
-# newfound typicality
-answer_newNT <- brm(Answer ~ newNT_cent*Block*task + (newNT_cent*Block*task|sub) + (1|item_id),
-                    data=df,
-                    family=bernoulli,
-                    file="answer_newNT",
-                    sample_prior=TRUE, save_all_pars=TRUE,
-                    chains=2, cores=2)
+# print('fitting newNT model')
+# # newfound typicality
+# answer_newNT <- brm(Answer ~ newNT_cent*Block*task + (newNT_cent*Block*task|sub) + (1|item_id),
+#                     data=df,
+#                     #priors=set_prior("normal(0,100)", class="b")
+#                     family=bernoulli,
+#                     file="answer_newNT",
+#                     save_all_pars=TRUE,
+#                     chains=2, cores=2)
+#
+# print('fitting conNT model')
+# # conserved typicality
+# answer_conNT <- brm(Answer ~ conNT_cent*Block*task + (conNT_cent*Block*task|sub) + (1|item_id),
+#                     data=df,
+#                     family=bernoulli,
+#                     #priors=set_prior("normal(0,100)", class="b")
+#                     file="answer_conNT",
+#                     save_all_pars=TRUE,
+#                     chains=2, cores=2)
+#
+# print('fitting bothNT model')
+# # newfound and conserved typicality
+# answer_bothNT <- brm(Answer ~ newNT_cent*conNT_cent*Block*task + (newNT_cent*conNT_cent*Block*task|sub) + (1|item_id),
+#                     data=df,
+#                     family=bernoulli,
+#                     #priors=set_prior("normal(0,100)", class="b")
+#                     file="answer_bothNT",
+#                     save_all_pars=TRUE,
+#                     chains=2, cores=2)
 
-print('fitting conNT model')
-# conserved typicality
-answer_conNT <- brm(Answer ~ conNT_cent*Block*task + (conNT_cent*Block*task|sub) + (1|item_id),
-                    data=df,
-                    family=bernoulli,
-                    file="answer_conNT",
-                    sample_prior=TRUE, save_all_pars=TRUE,
-                    chains=2, cores=2)
-
-print('fitting bothNT model')
-# newfound and conserved typicality
-answer_bothNT <- brm(Answer ~ newNT_cent*conNT_cent*Block*task + (newNT_cent*conNT_cent*Block*task|sub) + (1|item_id),
-                    data=df,
-                    family=bernoulli,
-                    file="answer_bothNT",
-                    sample_prior=TRUE, save_all_pars=TRUE,
-                    chains=2, cores=2)
+print('DONE')
