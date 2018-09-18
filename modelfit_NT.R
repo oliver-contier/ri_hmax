@@ -57,6 +57,9 @@ answer_nullmodel5 <- brm(Answer ~ ec_b2 + ec_b3 + task + task_order + task:task_
                         chains=2, cores=2,
                         inits=0)
 
+print('comparing null models with LOO')
+loo_nullmodcomp_nills <- loo(answer_nullmodel, answer_nullmodel2, answer_nullmodel3, answer_nullmodel4, answer_nullmodel5)
+print(loo_nullmodcomp_nulls)
 
 # print('fitting newNT model')
 # # newfound typicality
