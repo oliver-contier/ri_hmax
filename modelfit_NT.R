@@ -1,4 +1,4 @@
-# This script is meant to run the model fitting procedure on our computing cluster.
+# This script is meant to run the model fitting procedure with BRMS on our computing cluster.
 # The model setup is identical to the ones found in brms_analysis.ipynb, which
 # loads the saved .rds files to visualize and analyze the reslts.
 
