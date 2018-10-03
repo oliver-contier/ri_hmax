@@ -222,6 +222,25 @@ if (!file.exists(rdspath)){
   saveRDS(rt_bothNT8_ranova, rdspath)
 }
 
+# same as rt_bothNT8, but with newNT_z added as random slope across subs
+rdspath <- "./lme4_data/rt_bothNT9.rds"
+paste("fitting", rdspath, sep=" ")
+if (!file.exists(rdspath)){
+  rt_bothNT9 <- lmer(RT ~ conNT_z + newNT_z + Block + task +
+                    (newNT_z + Block + task|sub) + (1|item_id),
+                    data = df, REML=F)
+  saveRDS(rt_bothNT9, rdspath)
+}
+
+# ranova for bothNT model 9
+rdspath <- "./lme4_data/rt_bothNT9_ranova.rds"
+paste("fitting", rdspath, sep=" ")
+if (!file.exists(rdspath)){
+  rt_bothNT9 <- readRDS("./lme4_data/rt_bothNT9.rds")
+  rt_bothNT9_ranova <- ranova(rt_bothNT9)
+  saveRDS(rt_bothNT9_ranova, rdspath)
+}
+
 rdspath <- "./lme4_data/rt_conNT.rds"
 paste("fitting", rdspath, sep=" ")
 if (!file.exists(rdspath)){
