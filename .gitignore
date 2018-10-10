@@ -13,3 +13,5 @@
 *.rds
 *.pickle
 lme4_anova.R
+brms_analysis.ipynb
+bambi_analysis.ipynb
