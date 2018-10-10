@@ -131,6 +131,15 @@ if (!file.exists(rdspath)){
 }
 
 ## conNT and newNT models
+rdspath <- "./lme4_data/rt_bothNT_ia.rds"
+paste("fitting", rdspath, sep=" ")
+if (!file.exists(rdspath)){
+  rt_bothNT_ia <- lmer(RT ~ conNT_z * newNT_z * Block * task * task_order +
+                  (conNT_z * newNT_z * Block * task * task_order|sub) + (1|item_id),
+                  data = df, REML=F)
+  saveRDS(rt_bothNT_ia, rdspath)
+}
+
 rdspath <- "./lme4_data/rt_bothNT.rds"
 paste("fitting", rdspath, sep=" ")
 if (!file.exists(rdspath)){
