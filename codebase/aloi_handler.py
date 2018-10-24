@@ -1,8 +1,12 @@
 #!/usr/bin/env python
 
-import pandas as pd
 from os.path import abspath as abp
 from os.path import join as pjoin
+
+import pandas as pd
+
+from condor_handler import write_submission_file, exec_submission
+from hmax_handler import hmax_image
 
 
 def getfiles_aloi_selection(csv_file='stim_selection.csv',
@@ -19,7 +23,6 @@ def getfiles_aloi_selection(csv_file='stim_selection.csv',
         path to csv file containing my selection of ALOi stimuli
     db : str
         For now, only ALOI 2005 works
-
     aloi_db_path : str
         Path to base directory of the ALOI data base.
     rot_stepsize : int
@@ -30,9 +33,6 @@ def getfiles_aloi_selection(csv_file='stim_selection.csv',
     filelist : list
         list of absolute paths for all images.
     """
-    # Just a reminder, my naming convention for hmax files is: 'apple_1_ri_percept.png.ascii'
-    # so in the ALOI case, it works out as something like: dbnum_r360 + vision + .ascii
-
     db_df = pd.read_csv(csv_file)
     aloi_df = db_df[db_df['database'] == db]
 
@@ -46,7 +46,27 @@ def getfiles_aloi_selection(csv_file='stim_selection.csv',
     return filelist
 
 
-def aloi_selection2percepts(filelist):
-    # TODO: run pulse2percept on all images in my aloi selection
+def aloi_selection2percepts(inflist,
+                            runscr='aloi_condor_runscript.py',
+                            workdir='~/ri_hmax/workdir/'):
     # TODO: accept simulation parameters as args
-    pass
+    """
+    """
+    """
+    2. use those to create a condor submission file and execute it
+    3. print statements to check submission status
+    4. return list of outfile names
+    """
+    outflist = [pjoin(workdir, inf.replace('.png', 'ri_percept.png'))
+                for inf in inflist]
+    submitf = write_submission_file(runscript=runscr, infiles=inflist, outfiles=outflist)
+    exec_submission(submit_fpath=abp(submitf))
+    print('Submitted ALOI selection to condor for p2p simulation')
+    return outflist
+
+
+# TODO: Function to run python-hmax on my ALOi selection
+"""
+hmax_outputs = [hmax_image(imgin, hmaxout, hmax_python_dir=pjoin('~', 'ri_hmax', 'hmax-python'))
+                for imgin, hmaxout in zip(inflist, outflist)]
+"""
