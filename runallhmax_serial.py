@@ -20,6 +20,7 @@ os.chdir('hmax-python')
 origs = glob.glob('../orig/*')
 sims = glob.glob('../sim/*')
 
+
 def hmax_filelist(filelist):
 
     for fname in filelist:
@@ -37,7 +38,9 @@ def hmax_filelist(filelist):
         else:
             print('file %s already exists' % outname_abp)
 
+
 hmax_filelist(origs)
 print('hmaxed all originals')
+
 hmax_filelist(sims)
 print('hmaxed all simulated images')
