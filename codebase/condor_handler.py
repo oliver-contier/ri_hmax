@@ -6,10 +6,25 @@ from subprocess import call
 
 
 def write_submission_file(runscript,
-                          infiles,
-                          outfiles):
+                          arglist1,
+                          arglist2):
+    # TODO: add static args that don't iterate
     """
     Write a condor submission file to run each input image simulation in a seperate job.
+
+    Parameters
+    ----------
+    runscript : str
+        target script executed by condor. Typically a bash or python script that contains whatever you want to run.
+    arglist1 : list
+        list of first input arguments that condor should iterate over.
+    arglist2 : list
+        list of second input arguments that are also iterated.
+
+    Returns
+    -------
+    submit_fpath : str
+        path to the generated .submit file.
     """
     submit_fpath = pjoin(os.getcwd(), 'submit_all.submit')
 
@@ -30,10 +45,27 @@ def write_submission_file(runscript,
             f.write(line + '\n')
 
         # write i/o argument lines
-        for infile, outfile in zip(infiles, outfiles):
+        for infile, outfile in zip(arglist1, arglist2):
             f.write("Arguments = %s %s" % (infile, outfile) + '\nQueue\n')
     return submit_fpath
 
 
-def exec_submission(submit_fpath):
+def exec_submission(submit_fpath,
+                    cleanup=False):
+    """
+    execute condor submission file
+
+    Parameters
+    ----------
+    submit_fpath : str
+        path to .submit file
+    cleanup : bool
+        delete submission file after execution?
+
+    Returns
+    -------
+
+    """
     call(['condor_submit', submit_fpath])
+    if cleanup:
+        os.remove(submit_fpath)

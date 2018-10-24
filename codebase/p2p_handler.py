@@ -3,7 +3,6 @@
 """
 Beware that you need to source an env with my modified version of p2p which currently lives under this path on medusa:
 '/home/contier/retrep/p2p_mod/p2p_mod_env'
-# TODO: devinstall modded p2p in ri_hmax env.
 """
 
 import os

@@ -1,16 +1,16 @@
 #!/usr/bin/env python
 
+import os
 from os.path import abspath as abp
 from os.path import join as pjoin
 
 import pandas as pd
 
 from condor_handler import write_submission_file, exec_submission
-from hmax_handler import hmax_image
 
 
-def getfiles_aloi_selection(csv_file='stim_selection.csv',
-                            db='ALOI 2005)',
+def getfiles_aloi_selection(csv_file='/home/contier/ri_hmax/aloi_selection.csv',
+                            db='ALOI (2005)',
                             aloi_db_path='/home/data/exppsy/object_databases/Datenbanken/ALOI (2005)/png2',
                             rot_stepsize=9):
     """
@@ -33,7 +33,7 @@ def getfiles_aloi_selection(csv_file='stim_selection.csv',
     filelist : list
         list of absolute paths for all images.
     """
-    db_df = pd.read_csv(csv_file)
+    db_df = pd.read_csv(csv_file, sep=';')
     aloi_df = db_df[db_df['database'] == db]
 
     # get list of file names representing different rotations for each selected stimulus
@@ -47,21 +47,21 @@ def getfiles_aloi_selection(csv_file='stim_selection.csv',
 
 
 def aloi_selection2percepts(inflist,
-                            runscr='aloi_condor_runscript.py',
-                            workdir='~/ri_hmax/workdir/'):
-    # TODO: accept simulation parameters as args
-    """
-    """
+                            runscr,
+                            workdir='~/ri_hmax/workdir/',
+                            clean=False):
     """
     2. use those to create a condor submission file and execute it
     3. print statements to check submission status
     4. return list of outfile names
     """
+    if not os.path.exists(workdir):
+        os.makedirs(workdir)
     outflist = [pjoin(workdir, inf.replace('.png', 'ri_percept.png'))
                 for inf in inflist]
-    submitf = write_submission_file(runscript=runscr, infiles=inflist, outfiles=outflist)
-    exec_submission(submit_fpath=abp(submitf))
-    print('Submitted ALOI selection to condor for p2p simulation')
+    submitf = write_submission_file(runscript=runscr, arglist1=inflist, arglist2=outflist)
+    exec_submission(submit_fpath=abp(submitf), cleanup=clean)
+    print('Submitted ALOI selection to condor for simulation with script %s' %runscr)
     return outflist
 
 
