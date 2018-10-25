@@ -8,13 +8,16 @@ AlphaIMS configuration: e_spacing = 72, e_radius = 50, ncols and nrows=37
 """
 
 import numpy as np
+from skimage import img_as_float
 import skimage.io as sio
 import skimage.transform as sit
 from supersim.static import Simulator
 
+from aloi_handler import aloi_preproc
+
 
 def supersim_img(imgfile,
-                 downsample=(104, 104)):
+                 downsample=None):
     """
     Use Johannes supersim to transform an image into an ri percept.
 
@@ -22,8 +25,8 @@ def supersim_img(imgfile,
     ----------
     imgfile : str
         path to input image file
-    downsample : bool, tuple, optional
-        if not False, downsample the input image to the specified resolution
+    downsample : tuple, optional
+        if specified, downsample the input image to the specified resolution
 
     Returns
     -------
@@ -32,15 +35,17 @@ def supersim_img(imgfile,
     """
     # load and downsample input file
     img_in = sio.imread(imgfile, as_gray=True)
+    img_in = img_as_float(img_in)
     # only grab one of the image "depth" dimensions
-    img_in = img_in[:, :, 0]
+    if len(np.shape(img_in)) == 3:
+        img_in = img_in[:, :, 0]
     if downsample:
         img_in = sit.resize(img_in, downsample)
     # initialize simulation
     # TODO: how to set max_spread?
-    simulator = Simulator(use_gpu=0, placement='subretinal', #max_spread=0
-                          n_rows=37, n_cols=37, impl_center_x=0, impl_center_y=0,
-                          e_distance=72, e_size=50,
+    simulator = Simulator(use_gpu=0, placement='subretinal',  # max_spread=0
+                          n_rows=40, n_cols=40, impl_center_x=0, impl_center_y=0,
+                          e_distance=70, e_size=50,
                           s_sampling=25, t_sample=0.4 / 1000)
     simulator.initialize_stimulus(stim_duration=200)
     simulator.image_to_pulse_train(img_in, amp_range=[0, 20])
@@ -56,7 +61,9 @@ if __name__ == '__main__':
     import sys
 
     infile = sys.argv[1]
-    outfile = sys.argv[2]
+    preppedfile = sys.argv[2]
+    outfile = sys.argv[3]
 
-    percept = supersim_img(infile)
+    preppedfile = aloi_preproc(infile, preppedfile)
+    percept = supersim_img(preppedfile)
     sio.imsave(outfile, percept)

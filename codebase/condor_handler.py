@@ -7,7 +7,8 @@ from subprocess import call
 
 def write_submission_file(runscript,
                           arglist1,
-                          arglist2):
+                          arglist2,
+                          arglist3):
     # TODO: add static args that don't iterate
     """
     Write a condor submission file to run each input image simulation in a seperate job.
@@ -20,6 +21,8 @@ def write_submission_file(runscript,
         list of first input arguments that condor should iterate over.
     arglist2 : list
         list of second input arguments that are also iterated.
+    arglist3 : list
+        list of third input arguments.
 
     Returns
     -------
@@ -45,8 +48,8 @@ def write_submission_file(runscript,
             f.write(line + '\n')
 
         # write i/o argument lines
-        for infile, outfile in zip(arglist1, arglist2):
-            f.write("Arguments = %s %s" % (infile, outfile) + '\nQueue\n')
+        for infile, prepfile, outfile in zip(arglist1, arglist2, arglist3):
+            f.write("Arguments = %s %s %s" % (infile, prepfile, outfile) + '\nQueue\n')
     return submit_fpath
 
 

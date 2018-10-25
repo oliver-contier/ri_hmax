@@ -7,8 +7,10 @@ which python
 
 echo "input file : "
 echo $1
-echo "output file : "
+echo "prepped file : "
 echo $2
+echo "output file : "
+echo $3
 
 echo "executing supersim_handler.py"
-python supersim_handler.py $1 $2
+python supersim_handler.py $1 $2 $3

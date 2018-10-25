@@ -5,8 +5,12 @@ from os.path import abspath as abp
 from os.path import join as pjoin
 
 import pandas as pd
+import skimage.io as sio
+import skimage.transform as sit
+from skimage.exposure import equalize_adapthist
 
 from condor_handler import write_submission_file, exec_submission
+from preproc import add_yborder
 
 
 def getfiles_aloi_selection(csv_file='/home/contier/ri_hmax/aloi_selection.csv',
@@ -49,27 +53,57 @@ def getfiles_aloi_selection(csv_file='/home/contier/ri_hmax/aloi_selection.csv',
     return filepaths
 
 
+# TODO: Function to run python-hmax on my ALOi selection
+
+
+def aloi_preproc(imgfile,
+                 outfile,
+                 downsample=(104, 104),
+                 enhance=False,
+                 contrast_clip=0.015,
+                 lower_thresh=None):
+    # add borders to make a square image
+    img = sio.imread(imgfile, as_grey=True)
+    img_square = add_yborder(img)
+    # downsample
+    img_down = sit.resize(img_square, downsample)
+    if enhance:
+        # adaptive histogram equalization for contrast enhancement
+        img_down = equalize_adapthist(img_down, clip_limit=contrast_clip)
+    if lower_thresh:
+        # cut low values
+        img_down[img_down < lower_thresh] = 0
+    # save image
+    sio.imsave(outfile, img_down)
+    return outfile
+
+
 def aloi_selection2percepts(inflist,
                             runscr,
-                            workdir='/home/contier/ri_hmax/workdir/aloi/percepts',
+                            baseworkdir='/home/contier/ri_hmax/workdir/aloi/',
                             clean=False):
-    """
-    2. use those to create a condor submission file and execute it
-    3. print statements to check submission status
-    4. return list of outfile names
-    """
-    if not os.path.exists(workdir):
-        os.makedirs(workdir)
-    outflist = [pjoin(workdir, inf.split('/')[-1].replace('.png', '_ri_percept.png'))
+
+    # create working directories
+    for directory in [baseworkdir,
+                      pjoin(baseworkdir, 'preprocessed'),
+                      pjoin(baseworkdir, 'percepts')]:
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+
+    # create preprocessing output file names
+    prep_outflist = [pjoin(baseworkdir, 'preprocessed',
+                           inf.split('/')[-1].replace('.png', '_prep.png'))
+                     for inf in inflist]
+
+    # create ri simulation output filenames
+    outflist = [pjoin(baseworkdir, 'percepts',
+                      inf.split('/')[-1].replace('.png', '_ri_percept.png'))
                 for inf in inflist]
-    submitf = write_submission_file(runscript=runscr, arglist1=inflist, arglist2=outflist)
+
+    # creat and run submission file
+    submitf = write_submission_file(runscript=runscr, arglist1=inflist,
+                                    arglist2=prep_outflist, arglist3=outflist)
     exec_submission(submit_fpath=abp(submitf), cleanup=clean)
-    print('Submitted ALOI selection to condor for simulation with script %s' %runscr)
+    print('Submitted ALOI selection to condor for simulation with script %s' % runscr)
+
     return outflist
-
-
-# TODO: Function to run python-hmax on my ALOi selection
-"""
-hmax_outputs = [hmax_image(imgin, hmaxout, hmax_python_dir=pjoin('~', 'ri_hmax', 'hmax-python'))
-                for imgin, hmaxout in zip(inflist, outflist)]
-"""
