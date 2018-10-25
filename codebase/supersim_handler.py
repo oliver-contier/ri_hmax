@@ -32,15 +32,18 @@ def supersim_img(imgfile,
     """
     # load and downsample input file
     img_in = sio.imread(imgfile, as_gray=True)
+    # only grab one of the image "depth" dimensions
+    img_in = img_in[:, :, 0]
     if downsample:
         img_in = sit.resize(img_in, downsample)
     # initialize simulation
-    simulator = Simulator(max_spread=0, use_gpu=0, placement='subretinal',
+    # TODO: how to set max_spread?
+    simulator = Simulator(use_gpu=0, placement='subretinal', #max_spread=0
                           n_rows=37, n_cols=37, impl_center_x=0, impl_center_y=0,
                           e_distance=72, e_size=50,
                           s_sampling=25, t_sample=0.4 / 1000)
     simulator.initialize_stimulus(stim_duration=200)
-    simulator.image_to_pulse_train(imgfile, amp_range=[0, 20])
+    simulator.image_to_pulse_train(img_in, amp_range=[0, 20])
     # run simulation
     percept = simulator.simulate_percept()
     # extract brightest frame
@@ -48,9 +51,10 @@ def supersim_img(imgfile,
     return percept_max
 
 
-if __name__=='__main__':
+if __name__ == '__main__':
     #  make this also suitable as runscript for use with condor
     import sys
+
     infile = sys.argv[1]
     outfile = sys.argv[2]
 
