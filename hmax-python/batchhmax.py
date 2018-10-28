@@ -17,8 +17,8 @@ while pos < len(allfiles):
     fileslist = " ".join(allfiles[pos:pos+chunksize])
     mycommand = "bsub -oo output_chunk"+str(numchunk)+".txt -eo error_chunk"+str(numchunk)+".txt -q short -W 5:00 python  runhmaxonimages.py " + fileslist
     os.system(mycommand)
-    print "Submitting command: "+mycommand
-    print "==="
+    print("Submitting command: "+mycommand)
+    print("===")
     pos += chunksize
     numchunk += 1
     #if pos> chunksize*2.5:

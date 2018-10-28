@@ -13,4 +13,4 @@ echo "output file : "
 echo $3
 
 echo "executing supersim_handler.py"
-python supersim_handler.py $1 $2 $3
+python aloi_handler.py $1 $2 $3

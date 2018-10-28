@@ -6,15 +6,18 @@ Original version was retrieved from https://scholar.harvard.edu/tmiconi/pages/co
 
 import traceback
 import sys
-import cPickle
+import os
+#import cPickle
 import hmax
 from imageio import imread
 import numpy
 import time
+#from importlib import reload
 
 reload(hmax)
 
-print "Loading all filters"
+print("Loading all filters")
+os.chdir('/home/contier/ri_hmax/hmax-python')
 (v1f, s2f, s2bfAllSizes, s3f) = hmax.loadallfilts()
 
 
@@ -43,7 +46,7 @@ if not outfile.split('.')[-1] == 'ascii':
 Actual HMAXing
 """
 
-print "Processing image %s" % infile
+print("Processing image %s" % infile)
 img = imread(infile)
 
 # If there are more than 2 dimensions, the 3rd one (presumably RGB) is
@@ -53,7 +56,7 @@ if len(img.shape) > 2:
 
 t = time.time()
 (C2boutAllSizes, C3out) = hmax.hmax(img, v1f, s2f, s2bfAllSizes, s3f)
-print "Time elapsed:", (time.time()-t)
+print("Time elapsed:", (time.time()-t))
 
 """
 Write output

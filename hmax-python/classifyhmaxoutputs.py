@@ -78,11 +78,11 @@ weights = np.dot(traindatainv, trainclasses)
 classifieroutput = np.dot(testdata, weights)
 predictedtestclasses = np.sign(classifieroutput)
 
-print "Predicted test classes (ideally, would be one block of ones and another block of minus ones)"
-print predictedtestclasses
+print("Predicted test classes (ideally, would be one block of ones and another block of minus ones)")
+print(predictedtestclasses)
 score =  sum(predictedtestclasses == testclasses) / float(len(testclasses))
-print "Score:", score, "("+str(sum(predictedtestclasses == testclasses))+" right out of", \
-        str(len(testclasses))+")"
+print("Score:", score, "("+str(sum(predictedtestclasses == testclasses))+" right out of", \
+        str(len(testclasses))+")")
 
 
 

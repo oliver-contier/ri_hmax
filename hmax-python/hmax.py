@@ -1,20 +1,19 @@
-import hmaxoptions as opt
-
-
-import cPickle
+#import pickle
+import pickle
+import math
+import os
 import random
-import pdb
+#from importlib import reload
+
 import numpy as np
 import scipy.misc as sm
-import scipy.signal
-import math
 import scipy.ndimage.filters as snf
-import os
+
+import hmaxoptions as opt
 
 reload(opt)
 
-np.seterr(all='raise') #Floating point errors generate an actual exception rather than a warning
-
+np.seterr(all='raise')  # Floating point errors generate an actual exception rather than a warning
 
 
 def buildS1filters():
@@ -25,30 +24,31 @@ def buildS1filters():
     runs over scales (all the S1 RF sizes defined in the options). We use
     exactly the same equation as in Serre et al. PNAS 2007 (SI text).
     """
-    
-    print "Building S1 filters"
-    filts=[];
+
+    print("Building S1 filters")
+    filts = [];
     for RFSIZE in opt.S1RFSIZES:
-        filtsthissize=[]
-        for o in range(0,4):
+        filtsthissize = []
+        for o in range(0, 4):
             theta = o * math.pi / 4
-            #print "RF SIZE:", RFSIZE, "orientation: ", theta / math.pi, "* pi"
-            x, y = np.mgrid[0:RFSIZE, 0:RFSIZE] - RFSIZE/2
-            sigma = 0.0036 * RFSIZE * RFSIZE +0.35 * RFSIZE + 0.18
-            lmbda = sigma / 0.8 
+            # print("RF SIZE:", RFSIZE, "orientation: ", theta / math.pi, "* pi"
+            x, y = np.mgrid[0:RFSIZE, 0:RFSIZE] - RFSIZE / 2
+            sigma = 0.0036 * RFSIZE * RFSIZE + 0.35 * RFSIZE + 0.18
+            lmbda = sigma / 0.8
             gamma = 0.3
             x2 = x * np.cos(theta) + y * np.sin(theta)
             y2 = -x * np.sin(theta) + y * np.cos(theta)
-            myfilt = (np.exp(-(x2*x2 + gamma * gamma * y2 * y2) / (2 * sigma * sigma))
-                    * np.cos(2*math.pi*x2 / lmbda))
-            #print type(myfilt[0,0])
-            myfilt[np.sqrt(x**2 + y**2) > (RFSIZE/2)] = 0.0
+            myfilt = (np.exp(-(x2 * x2 + gamma * gamma * y2 * y2) / (2 * sigma * sigma))
+                      * np.cos(2 * math.pi * x2 / lmbda))
+            # print(type(myfilt[0,0])
+            myfilt[np.sqrt(x ** 2 + y ** 2) > (RFSIZE / 2)] = 0.0
             # Normalized like in Minjoon Kouh's code
             myfilt = myfilt - np.mean(myfilt)
-            myfilt = myfilt / np.sqrt(np.sum(myfilt**2))
+            myfilt = myfilt / np.sqrt(np.sum(myfilt ** 2))
             filtsthissize.append(myfilt.astype('float'))
         filts.append(filtsthissize)
     return filts
+
 
 def runS1group(imgin, s1f):
     """ 
@@ -76,11 +76,11 @@ def runS1group(imgin, s1f):
 
     # Note: output is a list of 3D arrays - one per scale.  Each 3D array is
     # a stack of 2D maps, one per orientation/prototype.
-    print "Running S1 group"
+    print("Running S1 group")
     img = imgin.astype(float)
-    output=[]
-    imgsq = img**2
-    cpt=0
+    output = []
+    imgsq = img ** 2
+    cpt = 0
     # Each element in s1f is the set of filters (of various orientations) for a
     # particular scale. We also use the index of this scale for debugging
     # purposes in an assertion.
@@ -97,20 +97,20 @@ def runS1group(imgin, s1f):
         # As seen in J. Mutch's hmin and Riesenhuber-Serre-Bileschi code.
         # Perhaps a SIGMA in the denominator would be good here?...
         # Though it might need to be adjusted for filter size...
-        tmp = snf.uniform_filter(imgsq, RFSIZE)*RFSIZE*RFSIZE
-        tmp[tmp<0]=0.0
+        tmp = snf.uniform_filter(imgsq, RFSIZE) * RFSIZE * RFSIZE
+        tmp[tmp < 0] = 0.0
         normim = np.sqrt(tmp) + 1e-9 + opt.SIGMAS1
-        assert np.min(normim>0)
-        for o in range(0,4):
+        assert np.min(normim > 0)
+        for o in range(0, 4):
             # fft convolution; note that in the case of S1 filters, reversing
             # the filters seems to have no effect, so convolution =
             # cross-correlation (...?)
             tmp = np.fft.irfft2(np.fft.rfft2(img) * np.fft.rfft2(fthisscale[o], img.shape))
             # Using the fft convolution requires the following (fun fact: -N/2 != -(N/2) ...)
-            tmp =np.roll(np.roll(tmp,-(RFSIZE/2), axis=1),-(RFSIZE/2), axis=0)
+            tmp = np.roll(np.roll(tmp, -(RFSIZE / 2), axis=1), -(RFSIZE / 2), axis=0)
             # Normalization
-            tmp  /= (normim)
-            fin = np.abs(tmp[RFSIZE/2:-RFSIZE/2, RFSIZE/2:-RFSIZE/2])
+            tmp /= (normim)
+            fin = np.abs(tmp[RFSIZE / 2:-RFSIZE / 2, RFSIZE / 2:-RFSIZE / 2])
             assert np.max(fin) < 1
             outputsAllOrient.append(fin)
         # We stack together the orientation maps of all 4 orientations into one single
@@ -119,22 +119,22 @@ def runS1group(imgin, s1f):
         cpt += 1
     return output
 
+
 def runGlobalCgroup(Sinputs):
     """ 
     Returns the list of the maximal activation for each prototype
     (across all positions and scales)  in the incoming S stack. 
     """
-    print "Running Global C group (global max of S inputs)"
-    outputs=np.zeros(Sinputs[0].shape[2])
+    print("Running Global C group (global max of S inputs)")
+    outputs = np.zeros(Sinputs[0].shape[2])
     for Sthisscale in Sinputs:
         wdt, lgt, depth = Sthisscale.shape
         # The number of prototypes had better be the same for all scales!
-        assert depth == Sinputs[0].shape[2] 
+        assert depth == Sinputs[0].shape[2]
         for p in range(depth):
-            outputs[p] = max(outputs[p], np.max(Sthisscale[:,:,p]))
-    return outputs                           
-            
-            
+            outputs[p] = max(outputs[p], np.max(Sthisscale[:, :, p]))
+    return outputs
+
 
 def runCgroup(Sinputs):
     """ Compute the local maxima among cells of neighbouring positions and
@@ -152,36 +152,37 @@ def runCgroup(Sinputs):
     2D maps, one per orientatio/prototype.
     """
 
-    print "Running C group"
+    print("Running C group")
     # In both C1 and C2, RF sizes start at 8 and grow by 2s
     Cscale = 8
     output = []
     # for every OTHER scale in the Sinputs...
     for k in range(0, len(Sinputs), 2):
-        #print "Using / merging S input scales "+str(k)+" and "+str(k+1)
+        # print("Using / merging S input scales "+str(k)+" and "+str(k+1)
         wdt, hgt, depth = Sinputs[k].shape
         # depth is the number of orientations/prototypes
         # We want to resize the next scale map to have the same size as the
         # current one (which should be larger since it has lower RF size)
-        outperp=[]
+        outperp = []
         for p in range(depth):
             # The spatial sampling rate is determined by the scale / RF size:
             epsilon = Cscale - 5
-            img1 = Sinputs[k][:,:,p]
-            if k+1 < len(Sinputs):
+            img1 = Sinputs[k][:, :, p]
+            if k + 1 < len(Sinputs):
                 # The 'F' is crucial, otherwise imresize forces the output 
                 # as int8!
-                img2 = sm.imresize(Sinputs[k+1][:,:,p], (wdt, hgt), mode='F', interp='bicubic')
+                img2 = sm.imresize(Sinputs[k + 1][:, :, p], (wdt, hgt), mode='F', interp='bicubic')
             else:
                 # If there is no "next scale" (od number of scales),
                 # we duplicate the current scale as a "dummy"  -
                 # wastes time, but simplifies code
                 img2 = img1
-            maxfilteroutput = snf.maximum_filter(np.dstack((img1, img2)), size=(Cscale,Cscale,2))
-            outperp.append(maxfilteroutput[::epsilon,::epsilon,1])
+            maxfilteroutput = snf.maximum_filter(np.dstack((img1, img2)), size=(Cscale, Cscale, 2))
+            outperp.append(maxfilteroutput[::epsilon, ::epsilon, 1])
         output.append(np.dstack(outperp[:]))
         Cscale += 2
     return output
+
 
 def myNormCrossCorr(stack, prot):
     """ This helper function performs a 3D cross-correlation between a 3D stack
@@ -205,25 +206,24 @@ def myNormCrossCorr(stack, prot):
 
     assert prot.shape[2] == stack.shape[2]
     NBPROTS = prot.shape[2]
-    RFSIZE = prot.shape[0] # Assuming square RFs, always
-    zerothres = RFSIZE*RFSIZE * (-1)
-    #cpt = 0 # For debugging
+    RFSIZE = prot.shape[0]  # Assuming square RFs, always
+    zerothres = RFSIZE * RFSIZE * (-1)
+    # cpt = 0 # For debugging
     XSIZE = stack.shape[0]
     YSIZE = stack.shape[1]
-    norm = np.zeros((XSIZE-RFSIZE+1, YSIZE-RFSIZE+1))
-    o2 = np.zeros((XSIZE-RFSIZE+1, YSIZE-RFSIZE+1))
+    norm = np.zeros((XSIZE - RFSIZE + 1, YSIZE - RFSIZE + 1))
+    o2 = np.zeros((XSIZE - RFSIZE + 1, YSIZE - RFSIZE + 1))
     for k in range(NBPROTS):
-# If all the weights in that slice of the filter are set to -1, don't bother (note
-# that this will be the case for >90% of slices in S3):
-        if np.sum(prot[:,:,k]) > zerothres:
+        # If all the weights in that slice of the filter are set to -1, don't bother (note
+        # that this will be the case for >90% of slices in S3):
+        if np.sum(prot[:, :, k]) > zerothres:
             for i in range(RFSIZE):
                 for j in range(RFSIZE):
-                    if prot[i,j,k] > 0: #> 1e-7:
-                        #cpt += 1
-                        norm += stack[i:i+1+XSIZE-RFSIZE, j:j+1+YSIZE-RFSIZE, k] ** 2
-                        o2  +=  stack[i:i+1+XSIZE-RFSIZE, j:j+1+YSIZE-RFSIZE, k] * prot[i,j,k]
+                    if prot[i, j, k] > 0:  # > 1e-7:
+                        # cpt += 1
+                        norm += stack[i:i + 1 + XSIZE - RFSIZE, j:j + 1 + YSIZE - RFSIZE, k] ** 2
+                        o2 += stack[i:i + 1 + XSIZE - RFSIZE, j:j + 1 + YSIZE - RFSIZE, k] * prot[i, j, k]
     return o2 / (np.sqrt(norm + 1e-9) + opt.SIGMAS)
-
 
 
 def runSgroup(Cinputs, prots):
@@ -242,10 +242,10 @@ def runSgroup(Cinputs, prots):
     many scales as in the C input, and as many prototypes as contained in
     prots.
     """
-    print "Running S group (corr), RF size ", prots[0].shape[0], " Cin depth ", Cinputs[0].shape[2]
-    output=[]
+    print("Running S group (corr), RF size ", prots[0].shape[0], " Cin depth ", Cinputs[0].shape[2])
+    output = []
     # For each scale, extract the stack of input C layers of that scale...
-    for  Cthisscale in Cinputs:
+    for Cthisscale in Cinputs:
         # If the C input maps are too small, as in, smaller than the S filter,
         # then there's no point in computing the S output; we return a depth-column 
         # of 0s instead
@@ -254,11 +254,11 @@ def runSgroup(Cinputs, prots):
             outputthisscale = [0] * len(prots)
             output.append(np.dstack(outputthisscale[:]))
             continue
-        
-        outputthisscale=[]
+
+        outputthisscale = []
         for nprot, thisprot in enumerate(prots):
             # Filter cross-correlation !
-            tmp = myNormCrossCorr(Cthisscale, thisprot)         
+            tmp = myNormCrossCorr(Cthisscale, thisprot)
             outputthisscale.append(tmp)
             assert np.max(tmp) < 1
         output.append(np.dstack(outputthisscale[:]))
@@ -295,16 +295,16 @@ def extractCpatch(Cgroup, RFsize, nbkeptweights, ispatchzero=False):
             break
     posx = random.randrange(Cchoice.shape[0] - RFsize)
     posy = random.randrange(Cchoice.shape[1] - RFsize)
-# This is for debugging - we want the first patch of the first scale of each S group to 
-# be at the center of the input image (which will be lena.png), so we can check that when
-# running the model on lena.png, the maximum for this prototype and scale will be at the
-# center (otherwise, problem!)
-    #if ispatchzero:
+    # This is for debugging - we want the first patch of the first scale of each S group to
+    # be at the center of the input image (which will be lena.png), so we can check that when
+    # running the model on lena.png, the maximum for this prototype and scale will be at the
+    # center (otherwise, problem!)
+    # if ispatchzero:
     #    Cchoice = Cgroup[0]
     #    posx = Cchoice.shape[0]/2 - RFsize/2
     #    posy = Cchoice.shape[1]/2 - RFsize/2
-    prot = Cchoice[posx:posx+RFsize,posy:posy+RFsize,:]
-# We only keep 'nbkeptweights' weights and set all other weights to -1
+    prot = Cchoice[posx:posx + RFsize, posy:posy + RFsize, :]
+    # We only keep 'nbkeptweights' weights and set all other weights to -1
     permutedweights = np.random.permutation(prot.size)
     keptweights = permutedweights[:nbkeptweights]
     zeroedweights = permutedweights[nbkeptweights:]
@@ -317,7 +317,6 @@ def extractCpatch(Cgroup, RFsize, nbkeptweights, ispatchzero=False):
     # Set non-kept weights to -1 - *after* normalizing...
     prot.flat[zeroedweights] = -1
     return prot
-
 
 
 def buildS2prots(numprots, reqnbkeptweights, reqRFsize, v1filters):
@@ -335,25 +334,26 @@ def buildS2prots(numprots, reqnbkeptweights, reqRFsize, v1filters):
     v1filters -- the S1 filters, as produced by
     buildS1filters(). 
     """
-    print "Building S2 prototypes (RF size ", reqRFsize, ")"
+    print("Building S2 prototypes (RF size ", reqRFsize, ")")
     imgfiles = os.listdir("images")
-    prots=[]
+    prots = []
     for n in range(numprots):
-        print "S2 prot. ", n, " (RF size ", reqRFsize, ")"
-# Read natural image data...
+        print("S2 prot. ", n, " (RF size ", reqRFsize, ")")
+        # Read natural image data...
         imgfile = random.choice(imgfiles)
-        #NOTE: Should include something here to fail gracefully if a non-image file is encountered
-        img = sm.imread(opt.ImagesForProtsDir+'/'+imgfile)
-# For debugging:
-        #if n==0:
+        # NOTE: Should include something here to fail gracefully if a non-image file is encountered
+        img = sm.imread(opt.ImagesForProtsDir + '/' + imgfile)
+        # For debugging:
+        # if n==0:
         #    img = sm.imread('lena.png')
-            
+
         S1out = runS1group(img, v1filters)
         C1out = runCgroup(S1out)
-        prots.append(extractCpatch(C1out, RFsize=reqRFsize, 
-                    nbkeptweights=reqnbkeptweights, ispatchzero=(n==0)))
+        prots.append(extractCpatch(C1out, RFsize=reqRFsize,
+                                   nbkeptweights=reqnbkeptweights, ispatchzero=(n == 0)))
     return prots
-       
+
+
 def buildS3prots(numprots, reqnbkeptweights, reqRFsize, v1filters, s2filters):
     """ 
     Build S3 prototypes by extracting C2 output patches, using images in the "images" directory.
@@ -371,26 +371,27 @@ def buildS3prots(numprots, reqnbkeptweights, reqRFsize, v1filters, s2filters):
     s2filters -- the S2 filters, as produced by
     buildS2prots() or loadallfilts(). 
     """
-    print "Building S3 prototypes (RF size ", reqRFsize, ")"
+    print("Building S3 prototypes (RF size ", reqRFsize, ")")
     imgfiles = os.listdir("images")
-    prots=[]
+    prots = []
     for n in range(numprots):
-        print "S3 prot. ", n, " (RF size ", reqRFsize, ")"
+        print("S3 prot. ", n, " (RF size ", reqRFsize, ")")
         imgfile = random.choice(imgfiles)
-# Reading data from natural image file...
-        img = sm.imread(opt.ImagesForProtsDir+'/'+imgfile)
-# For debugging:
-        #if n==0:
+        # Reading data from natural image file...
+        img = sm.imread(opt.ImagesForProtsDir + '/' + imgfile)
+        # For debugging:
+        # if n==0:
         #    img = sm.imread('lena.png')
-            
+
         S1out = runS1group(img, v1filters)
         C1out = runCgroup(S1out)
         S2out = runSgroup(C1out, s2filters)
         C2out = runCgroup(S2out)
-        prots.append(extractCpatch(C2out, RFsize=reqRFsize, 
-            nbkeptweights=reqnbkeptweights, ispatchzero=(n==0)))
+        prots.append(extractCpatch(C2out, RFsize=reqRFsize,
+                                   nbkeptweights=reqnbkeptweights, ispatchzero=(n == 0)))
     return prots
-       
+
+
 def buildandsaveallfilts(filename="filters.dat"):
     """ 
     Build and save the filters/prototypes for S1, S2 and S3. The file created
@@ -398,23 +399,23 @@ def buildandsaveallfilts(filename="filters.dat"):
     
     WARNING: Using the Serre parameters, this takes a lot of time (~10 hours!)
 
-    """ 
+    """
     filtersfile = open(filename, 'wb')
     v1f = buildS1filters()
-    cPickle.dump(v1f, filtersfile)
-    s2f = buildS2prots(numprots=opt.NBS2PROTS, reqnbkeptweights = opt.NBKEPTWEIGHTSS2,
-        reqRFsize=3, v1filters=v1f)
-    cPickle.dump(s2f, filtersfile, protocol=-1)
-    S2bfiltersAllSizes=[]
+    pickle.dump(v1f, filtersfile)
+    s2f = buildS2prots(numprots=opt.NBS2PROTS, reqnbkeptweights=opt.NBKEPTWEIGHTSS2,
+                       reqRFsize=3, v1filters=v1f)
+    pickle.dump(s2f, filtersfile, protocol=-1)
+    S2bfiltersAllSizes = []
     for s in opt.S2bRFSIZES:
-        S2bfiltersAllSizes.append(buildS2prots(numprots=opt.NBS2bPROTS, 
-            reqnbkeptweights=opt.NBKEPTWEIGHTSS2B, reqRFsize=s, v1filters=v1f))
-	# Format of S2bfiltersAllSizes:
-	# List of opt.S2bRFSIZES lists of h.NBS2bPROTS prototypes. Each prototype is
-	# an RFSIZE x RFSIZE x 4 array
-    cPickle.dump(S2bfiltersAllSizes, filtersfile, protocol=-1)
-    cPickle.dump(buildS3prots(numprots=opt.NBS3PROTS, reqnbkeptweights=opt.NBKEPTWEIGHTSS3,
-        reqRFsize=3, v1filters=v1f, s2filters=s2f), filtersfile, protocol=-1)
+        S2bfiltersAllSizes.append(buildS2prots(numprots=opt.NBS2bPROTS,
+                                               reqnbkeptweights=opt.NBKEPTWEIGHTSS2B, reqRFsize=s, v1filters=v1f))
+    # Format of S2bfiltersAllSizes:
+    # List of opt.S2bRFSIZES lists of h.NBS2bPROTS prototypes. Each prototype is
+    # an RFSIZE x RFSIZE x 4 array
+    pickle.dump(S2bfiltersAllSizes, filtersfile, protocol=-1)
+    pickle.dump(buildS3prots(numprots=opt.NBS3PROTS, reqnbkeptweights=opt.NBKEPTWEIGHTSS3,
+                              reqRFsize=3, v1filters=v1f, s2filters=s2f), filtersfile, protocol=-1)
     filtersfile.close()
 
 
@@ -426,10 +427,10 @@ def loadallfilts(filename='filters.dat'):
     """
 
     filtersfile = open('filters.dat', 'rb')
-    v1f = cPickle.load(filtersfile)
-    s2filters=cPickle.load(filtersfile)
-    S2bfiltersAllSizes=cPickle.load(filtersfile)
-    s3filters=cPickle.load(filtersfile)
+    v1f = pickle.load(filtersfile)
+    s2filters = pickle.load(filtersfile)
+    S2bfiltersAllSizes = pickle.load(filtersfile)
+    s3filters = pickle.load(filtersfile)
     filtersfile.close()
     return (v1f, s2filters, S2bfiltersAllSizes, s3filters)
 
@@ -460,13 +461,10 @@ def hmax(imagedata, v1filters, s2filters, s2bfiltersallsizes, s3filters):
     C1out = runCgroup(S1out)
     S2out = runSgroup(C1out, s2filters)
     C2out = runCgroup(S2out)
-    C2boutallsizes=[]
+    C2boutallsizes = []
     for s2bf in s2bfiltersallsizes:
         S2bout = runSgroup(C1out, s2bf)
         C2boutallsizes.append(runGlobalCgroup(S2bout))
     S3out = runSgroup(C2out, s3filters)
     C3out = runGlobalCgroup(S3out)
     return (C2boutallsizes, C3out)
-
-
-

@@ -57,7 +57,10 @@ def supersim_img(imgfile,
 
 
 if __name__ == '__main__':
-    #  make this also suitable as runscript for use with condor
+    """
+    This part acts as the pipeline for RI simulation of a single image
+    to run via the supersim_runscript.sh on condor
+    """
     import sys
 
     infile = sys.argv[1]

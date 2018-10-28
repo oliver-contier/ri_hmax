@@ -1,11 +1,12 @@
 #!/usr/bin/env python
 
 import glob
-import numpy as np
-import pandas as pd
 from os.path import abspath as abp
 from os.path import join as pjoin
 from subprocess import call
+
+import numpy as np
+import pandas as pd
 
 
 def hmax_image(image_infile, hmax_outfile,
@@ -42,9 +43,9 @@ def hmaxfile2dict(hmax_file):
 
     # get stimulus name, category name, and vision
     stimname = hmax_file.replace('.png', '')
-    for substring, visionstring in zip(['percept', 'intact'], ['ri_percept', 'intact']):
+    for substring, vision in zip(['percept', 'intact'], ['ri_percept', 'intact']):
         if substring in hmax_file:
-            vision = visionstring
+            vision = vision
             stimname = hmax_file.replace('_' + substring, '')  # result should be 'apple_1'
     catname = stimname.split('_')[0]  # result should be 'apple'
 
@@ -82,3 +83,13 @@ def hmaxoutdir2df(hmax_out_dir):
     # combine all dicts into one pandas data frame
     pattern_df = pd.DataFrame(pattern_dicts)
     return pattern_df
+
+
+if __name__ == '__main__':
+    # this should be executed via the runscript triggered by condor.
+    import sys
+
+    infile = sys.argv[1]
+    outfile = sys.argv[2]
+
+    hmax_image(infile, outfile, hmax_python_dir=pjoin('..', 'hmax-python'))
