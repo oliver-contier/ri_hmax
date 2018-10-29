@@ -19,7 +19,9 @@ def aloi_getpaths(csv_file='/home/contier/ri_hmax/aloi_selection.csv',
                                      'ALOI_2005',
                                      'png2'),
                   baseworkdir='/home/contier/ri_hmax/workdir/aloi/',
-                  rot_stepsize=9):
+                  rot_stepsize=9,
+                  checkexistance=True,
+                  overwrite_percepts=False):
     """
     Get a list of IO paths for the ALOI selection. Infiles are specified in the and specified in a csv file.
 
@@ -35,6 +37,11 @@ def aloi_getpaths(csv_file='/home/contier/ri_hmax/aloi_selection.csv',
         Path to base of the working directory where prepped and simulated files are to be stored.
     rot_stepsize : int
         Step size for choosing every nth viewpoint from the list of available viewpoints.
+    checkexistance : bool
+        Check if all generated input files actually exist.
+    overwrite_percepts : bool
+        if False, only return the input files for which no percepts are generated yet. If True, return all
+        input files specified in the csv.
 
     Returns
     -------
@@ -53,7 +60,7 @@ def aloi_getpaths(csv_file='/home/contier/ri_hmax/aloi_selection.csv',
         if not os.path.exists(directory):
             os.makedirs(directory)
     # read csv file
-    db_df = pd.read_csv(csv_file)
+    db_df = pd.read_csv(csv_file, sep=';')
     aloi_df = db_df[db_df['database'] == db]
     # get list of file names representing different rotations for each selected stimulus
     inpaths_tmp = [
@@ -65,33 +72,40 @@ def aloi_getpaths(csv_file='/home/contier/ri_hmax/aloi_selection.csv',
     # remove decimal point from float.
     inpaths = [fpath.replace('.0', '') for fpath in inpaths_tmp]
 
-    # create preprocessing output file names
-    preppaths = [
-        pjoin(baseworkdir, 'preprocessed',
-              inf.split('/')[-1].replace('.png', '_prep.png'))
-        for inf in inpaths
-    ]
+    # check if input files exist
+    if checkexistance:
+        for infile in inpaths:
+            if not os.path.exists(infile):
+                raise IOError('Could not find input file : %s ' % infile)
+
     # create ri simulation output filenames
     perceptpaths = [
         pjoin(baseworkdir, 'percepts',
               inf.split('/')[-1].replace('.png', '_ri_percept.png'))
-        for inf in inpaths
-    ]
+        for inf in inpaths]
+
+    # re-do inputh and ri_percept paths lists if the respective ri_percept already exists
+    if not overwrite_percepts:
+        inpaths = [inf for inf, perc in zip(inpaths, perceptpaths) if not os.path.exists(perc)]
+        perceptpaths = [pjoin(baseworkdir, 'percepts', inf.split('/')[-1].replace('.png', '_ri_percept.png'))
+                        for inf in inpaths]
+
+    # create preprocessing output file names
+    preppaths = [
+        pjoin(baseworkdir, 'preprocessed',
+              inf.split('/')[-1].replace('.png', '_prep.png'))
+        for inf in inpaths]
     # create paths for hmax outputs
     intact_hmaxpaths = [
         pjoin(baseworkdir, 'hmaxout',
               prepfile.split('/')[-1].replace('_prep.png', '_intact.ascii'))
-        for prepfile in preppaths
-    ]
+        for prepfile in preppaths]
     percept_hmaxpaths = [
         pjoin(baseworkdir, 'hmaxout',
               perceptfile.split('/')[-1].replace('_ri_percept.png', '_percept.ascii'))
         for perceptfile in perceptpaths]
 
     return inpaths, preppaths, perceptpaths, intact_hmaxpaths, percept_hmaxpaths
-
-
-# TODO: Function to run python-hmax on my ALOi selection
 
 
 def aloi_preproc(imgfile,
@@ -146,15 +160,11 @@ def aloi_writesubmit_supersim(inflist,
 
 def aloi_writesubmit_hmax(prepfiles, perceptfiles, intactouts, perceptouts,
                           runscr, clean=False):
-
     # merge input and output lists
     hmaxinputs = prepfiles + perceptfiles
     hmaxoutputs = intactouts + perceptouts
-    # TODO: write bash script that's triggered by condor
 
     submitf = write_submission_file(runscr, hmaxinputs, hmaxoutputs)
     exec_submission(submit_fpath=abp(submitf), cleanup=clean)
     print('Submitted ALOI prepped and percept files to condor for HMAXing with %s' % runscr)
     return hmaxinputs, hmaxoutputs
-
-

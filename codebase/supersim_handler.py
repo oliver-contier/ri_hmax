@@ -3,8 +3,6 @@
 """
 Notes
 -----
-AlphaIMS configuration: e_spacing = 72, e_radius = 50, ncols and nrows=37
-
 """
 
 import numpy as np
@@ -41,11 +39,13 @@ def supersim_img(imgfile,
         img_in = img_in[:, :, 0]
     if downsample:
         img_in = sit.resize(img_in, downsample)
+
     # initialize simulation
+    # AlphaIMS configuration: e_spacing = 72, e_radius = 50, ncols and nrows = 37
     # TODO: how to set max_spread?
-    simulator = Simulator(use_gpu=0, placement='subretinal',  # max_spread=0
-                          n_rows=40, n_cols=40, impl_center_x=0, impl_center_y=0,
-                          e_distance=70, e_size=50,
+    simulator = Simulator(use_gpu=0, placement='subretinal', # max_spread=0,
+                          n_rows=37, n_cols=37, impl_center_x=0, impl_center_y=0,
+                          e_distance=72, e_size=50,
                           s_sampling=25, t_sample=0.4 / 1000)
     simulator.initialize_stimulus(stim_duration=200)
     simulator.image_to_pulse_train(img_in, amp_range=[0, 20])

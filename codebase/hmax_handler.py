@@ -86,7 +86,9 @@ def hmaxoutdir2df(hmax_out_dir):
 
 
 if __name__ == '__main__':
-    # this should be executed via the runscript triggered by condor.
+    """
+    this .py script can also be executed via the runscript triggered through condor.
+    """
     import sys
 
     infile = sys.argv[1]
