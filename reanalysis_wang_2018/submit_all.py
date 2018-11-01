@@ -23,7 +23,7 @@ def write_submission_file(infiles):
     with open(submit_fpath, 'w') as f:
         # write header
         headerlines = ["Universe = vanilla",
-                       "Executable = ./hmax-python/runhmaxonimages.py",
+                       "Executable = ../hmax-python/runhmaxonimages.py",
                        "Log = submit_all.log",
                        "Output = submit_all.out",
                        "Error = submit_all.error"]
