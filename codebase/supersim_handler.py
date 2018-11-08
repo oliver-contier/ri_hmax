@@ -6,9 +6,9 @@ Notes
 """
 
 import numpy as np
-from skimage import img_as_float
 import skimage.io as sio
 import skimage.transform as sit
+from skimage import img_as_float, img_as_ubyte
 from supersim.static import Simulator
 
 from aloi_handler import aloi_preproc
@@ -42,8 +42,9 @@ def supersim_img(imgfile,
 
     # initialize simulation
     # AlphaIMS configuration: e_spacing = 72, e_radius = 50, ncols and nrows = 37
-    # TODO: how to set max_spread?
-    simulator = Simulator(use_gpu=0, placement='subretinal', # max_spread=0,
+    # max_spread is set to 500 microns by default
+    # (determines the size of simulated retina beyond the implant, impacts output size)
+    simulator = Simulator(use_gpu=0, placement='subretinal',
                           n_rows=37, n_cols=37, impl_center_x=0, impl_center_y=0,
                           e_distance=72, e_size=50,
                           s_sampling=25, t_sample=0.4 / 1000)
@@ -69,4 +70,8 @@ if __name__ == '__main__':
 
     preppedfile = aloi_preproc(infile, preppedfile)
     percept = supersim_img(preppedfile)
-    sio.imsave(outfile, percept)
+
+    # convert to uint8 format bc else psychopy won't display properly
+    percept_uint8 = img_as_ubyte(percept)
+
+    sio.imsave(outfile, percept_uint8)

@@ -7,6 +7,7 @@ from os.path import join as pjoin
 import pandas as pd
 import skimage.io as sio
 import skimage.transform as sit
+from skimage import img_as_ubyte
 from skimage.exposure import equalize_adapthist
 
 from condor_handler import write_submission_file, exec_submission
@@ -110,6 +111,7 @@ def aloi_getpaths(csv_file='/home/contier/ri_hmax/aloi_selection.csv',
 
 def aloi_preproc(imgfile,
                  outfile,
+                 saveasuint8=True,
                  downsample=(104, 104),
                  enhance=False,
                  contrast_clip=0.015,
@@ -125,6 +127,8 @@ def aloi_preproc(imgfile,
     if lower_thresh:
         # cut low values
         img_down[img_down < lower_thresh] = 0
+    if saveasuint8:
+        img_down = img_as_ubyte(img_down)
     # save image
     sio.imsave(outfile, img_down)
     return outfile
