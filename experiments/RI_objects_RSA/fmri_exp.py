@@ -2,13 +2,11 @@
 # -*- coding: utf-8 -*-
 
 """
-hand-coded script for stimulus presentation in the scanner.
-Include both first and second session and make adaptable by input GUI.
+Script for stimulus presentation in the scanner.
+# TODO: describe script usage (when finished)
 """
 
 import copy
-import csv
-import glob
 import os
 import random
 from collections import OrderedDict
@@ -16,56 +14,9 @@ from os.path import join as pjoin
 
 import numpy as np
 from numpy.random import exponential
-from psychopy import gui, core, data, visual, event
+from psychopy import core, visual, event
 
-
-def show_gui(exp_name='retina_rep'):  # out_dir='./data',
-    """
-    Get session info from subject via a GUI.
-
-    Parameters
-    ----------
-    out_dir : str
-        path to folder where data is to be stored
-    exp_name : str
-        Name of the experiment, will be stored in exp_info
-
-    Returns
-    -------
-    exp_info : dict
-        containing subject ID, gender, age, etc.
-    outfile : str
-        full path to the output data file
-    session : int
-        is this fmri-session 1 or 2?
-    """
-
-    # if not os.path.exists(out_dir):
-    #     os.makedirs(out_dir)
-
-    # initiate dict with information collected from GUI input
-    exp_info = {'SubjectID': '',
-                'Gechlecht': ('maennlich', 'weiblich'),
-                'Alter': ' ',
-                'Rechtshaendig': True,
-                'Sitzung': (1, 2)}
-
-    # draw gui
-    dlg = gui.DlgFromDict(dictionary=exp_info, title=exp_name)
-
-    # quit gui if user clicks 'cancel'
-    if not dlg.OK:
-        core.quit()
-
-    # add additional info to exp_info which doesn't come from GUI input
-    exp_info = OrderedDict(exp_info)
-    exp_info['exp_name'] = exp_name
-    exp_info['date'] = data.getDateStr()
-
-    # # output file path
-    # outfile = pjoin(out_dir, exp_info['SubjectID'] + '_' + exp_info['date'] + '_sitzung_' + str(exp_info['Sitzung']))
-
-    return exp_info
+from general import getstims_aloiselection, list_of_dictlists_2csv, add_expinfo, draw_gui
 
 
 def showinstr(instring='Weiter mit der Leertaste'):
@@ -95,61 +46,6 @@ def showinstr(instring='Weiter mit der Leertaste'):
     else:
         print 'End of instructions'
         win.close()
-
-
-def get_stims_aloi_selection(percepts_dir='../Stimuli/percepts',
-                             preprocessed_dir='../Stimuli/preprocessed'):
-    """
-    Create list of dicts containing information about all experimental stimuli, like their
-    vision type ('ri_percept' vs. 'intact'), rotation, object_ID and file_path.
-
-    Parameters
-    ----------
-    percepts_dir : str
-        Path to directory with RI percept images (should be .png).
-    preprocessed_dir : str
-        Path to directory with intact object images (which were also preprocessed in my case).
-
-    Returns
-    -------
-    percept_dicts : list of dicts
-        Each dict stands for one RI percept stimulus, containing key-value pairs for vision, rotation, object_ID,
-        and file path.
-    intact_dicts : list of dicts
-        Same as percept_dicts but for intact object stimuli.
-    """
-    #  check if input directory exists
-    for directory in [percepts_dir, preprocessed_dir]:
-        if not os.path.exists(directory):
-            raise IOError('Could not find stimulus input directory : %s' % directory)
-
-    # We want a list of dicts.
-    # Each dict should have key-values for: Object number, rotation, vision
-    percept_fpaths = glob.glob(percepts_dir + '/*.png')
-    intact_fpaths = glob.glob(preprocessed_dir + '/*.png')
-
-    # collect info from percept file names
-    percept_dicts = []
-    for percept_fpath in percept_fpaths:
-        # vision1 and vision2 are not actually used for the dict
-        object_ID, rotation, vision1, vision2 = tuple(percept_fpath.split('/')[-1].split('.')[0].split('_'))
-        percept_dict = OrderedDict({'file_path': percept_fpath,
-                                    'object_ID': object_ID,
-                                    'rotation': int(rotation.replace('r', '')),
-                                    'vision': 'ri_percept'})
-        percept_dicts.append(percept_dict)
-
-    # collect info from intact (prepped) object file names
-    intact_dicts = []
-    for intact_fpath in intact_fpaths:
-        object_ID, rotation, vision = tuple(intact_fpath.split('/')[-1].split('.')[0].split('_'))
-        intact_dict = OrderedDict({'file_path': intact_fpath,
-                                   'object_ID': object_ID,
-                                   'rotation': int(rotation.replace('r', '')),
-                                   'vision': 'intact'})
-        intact_dicts.append(intact_dict)
-
-    return percept_dicts, intact_dicts
 
 
 def checkconsec(integerlist):
@@ -194,16 +90,6 @@ def assertplus2(list1, list2):
     return None
 
 
-def add_expinfo_stimsequence(stimsequence, exp_info):
-    """
-    Add key-value pairs in exp_info to list of stimdicts defined in stim_sequence so it will be
-    captured in our logg files.
-    """
-    for stimdict in stimsequence:
-        stimdict.update(exp_info)
-    return stimsequence
-
-
 def add_empty_responses(stimsequence):
     """
     Add empty dummy information for the to-be-captured responses to each stimulus dict in sequence. These are:
@@ -218,38 +104,6 @@ def add_empty_responses(stimsequence):
         stimdict['trial_num'] = trial_num
         stimdict['ran'] = False
     return stimsequence
-
-
-def dictlist2csv(dictlist, csv_fname):
-    """
-    Write a list of dictionaries to a csv file. In our case, this function is used to write the logg-file after all
-    trials have run or experimenter exits via escape.
-    This will only work if all dicts have the same keys.
-    """
-    # assert if all keys are the same
-    for stimdict in dictlist[1:]:
-        if not set(stimdict.keys()) == set(dictlist[0].keys()):
-            raise IOError('not all dicts in dictlist have the same keys.')
-    # write csv
-    header_keys = dictlist[0].keys()
-    with open(csv_fname, 'wb') as f:
-        dict_writer = csv.DictWriter(f, header_keys)
-        dict_writer.writeheader()
-        dict_writer.writerows(dictlist)
-    return None
-
-
-def list_of_dictlists_2csv(dictlistslist, csv_fname):
-    """
-    take a list of lists, each containing dicts with equivalent keys and write their contents into a csv file.
-    """
-    header_keys = dictlistslist[0][0].keys()
-    with open(csv_fname, 'wb') as f:
-        dict_writer = csv.DictWriter(f, header_keys)
-        dict_writer.writeheader()
-        for dictlist in dictlistslist:
-            dict_writer.writerows(dictlist)
-    return None
 
 
 def add_catches(stimlist,
@@ -270,6 +124,7 @@ def add_catches(stimlist,
     # make list of random, non-consecutive positions for catch trials
     # with constraint that first and last trials mustn't be catch trials
     consec_bool, firstlast_bool = True, True
+    catchpositions = None
     while consec_bool or firstlast_bool:
         catchpositions = random.sample(range(len(stimlist)), num_catches)
         consec_bool, firstlast_bool = checkconsec(catchpositions), checkfirstlast(catchpositions, stimlist)
@@ -294,10 +149,10 @@ def add_catches(stimlist,
     return stimlist_copy
 
 
-def itis_shiftruncexpon(miniti=800.,
-                        maxiti=1500.,
-                        aviti=1000.,
-                        ntrials=141):
+def makejitter_shiftruncexpon(miniti=800.,
+                              maxiti=1500.,
+                              aviti=1000.,
+                              ntrials=141):
     """
     Sample ITIs from truncated exponential distribution which is shifted by a minimum value.
     """
@@ -321,7 +176,7 @@ def add_jitter(stim_sequence,
     """
     if not jitter == 'shiftruncexpon':
         raise IOError('only the jitter type shifted truncated exponential is supported for now')
-    itis = itis_shiftruncexpon(miniti=min_iti, maxiti=max_iti, aviti=av_iti, ntrials=len(stim_sequence))
+    itis = makejitter_shiftruncexpon(miniti=min_iti, maxiti=max_iti, aviti=av_iti, ntrials=len(stim_sequence))
     for stim, iti in zip(stim_sequence, itis):
         stim['iti'] = iti
     return stim_sequence
@@ -337,7 +192,7 @@ def make_run_seq(stimdicts,
     Parameters
     ----------
     stimdicts : list
-        each list entry represents one stimulus gathered with get_stims_aloi_selection
+        each list entry represents one stimulus gathered with getstims_aloiselection
     experiment_info : dict
         additional experiment information gathered from the psychopy gui
     blocksperrun : int
@@ -354,7 +209,7 @@ def make_run_seq(stimdicts,
     for block in range(1, blocksperrun + 1):
         # for each block, create a seperate copy and add exp_info, empty responses, catches, jitter, and block number
         block_sequence = copy.deepcopy(stimdicts)
-        block_sequence = add_expinfo_stimsequence(block_sequence, experiment_info)
+        block_sequence = add_expinfo(block_sequence, experiment_info)
         block_sequence = add_empty_responses(block_sequence)
         block_sequence = add_catches(block_sequence)
         block_sequence = add_jitter(block_sequence, jitter='shiftruncexpon')
@@ -494,7 +349,11 @@ def present_run(run_sequence,
     return None
 
 
-def run_first_session(stimbasedir, outcsvdir, nruns=4, blocksprun=4, testing=False):
+def run_first_session(stimbasedir,
+                      outcsvdir,
+                      nruns=4,
+                      blocksprun=4,
+                      testing=False):
     # create output directory
     if not os.path.exists(outcsvdir):
         os.makedirs(outcsvdir)
@@ -502,14 +361,14 @@ def run_first_session(stimbasedir, outcsvdir, nruns=4, blocksprun=4, testing=Fal
     # get stim sequence
     perc_dir = pjoin(stimbasedir, 'percepts')
     prep_dir = pjoin(stimbasedir, 'preprocessed')
-    percept_dicts, intact_dicts = get_stims_aloi_selection(percepts_dir=perc_dir, preprocessed_dir=prep_dir)
+    percept_dicts, intact_dicts = getstims_aloiselection(percepts_dir=perc_dir, preprocessed_dir=prep_dir)
 
     # draw gui to get exp_info
     if testing:
         exp_info = OrderedDict({'Alter': ' 1', 'Geschlecht': 'weiblich', 'Rechtshaendig': True, 'Sitzung': '1',
                                 'SubjectID': '1', 'date': u'2018_Nov_06_1408', 'exp_name': 'RI_RSA'})
     else:
-        exp_info = show_gui(exp_name='RI_RSA')
+        exp_info = draw_gui(exp_name='RI_RSA')
 
     # TODO: instruction windows
 
@@ -528,7 +387,7 @@ if __name__ == '__main__':
     stimdir = '/Users/Oliver/ri_hmax/experiments/RI_objects_RSA/Stimuli/'
     outdir = os.path.dirname(os.path.realpath(__file__))
 
-    run_first_session(stimbasedir=stimdir, outcsvdir=outdir, testing=True)
+    run_first_session(stimbasedir=stimdir, outcsvdir=outdir)  # , testing=True)
 
     # exp_info = OrderedDict({'Alter': ' 1', 'Geschlecht': 'maennlich', 'Rechtshaendig': True, 'Sitzung': 1,
     #                         'SubjectID': '1', 'date': u'2018_Nov_06_1408', 'exp_name': 'retina_rep'})
