@@ -340,7 +340,6 @@ def present_run(run_sequence,
 
     # write csv with output after trial loop has ended
     list_of_dictlists_2csv(run_sequence, output_csv)
-    # dictlist2csv(run_sequence, output_csv)
 
     # end presentation
     window_.close()
@@ -376,7 +375,8 @@ def run_first_session(stimbasedir,
         # make sequence for one run
         run_seq = make_run_seq(percept_dicts, exp_info, blocksperrun=blocksprun)
         # create csv file name (full path)
-        csv_fname = pjoin(outcsvdir, 'sub%s_session%s_run%i.csv' % (exp_info['SubjectID'], exp_info['Sitzung'], run))
+        csv_fname = pjoin(outcsvdir,
+                          'sub%s_session%s_run%i_fmri.csv' % (exp_info['SubjectID'], exp_info['Sitzung'], run))
         # present one functional run
         present_run(run_seq, output_csv=csv_fname)
 
