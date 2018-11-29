@@ -1,6 +1,12 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
+
+"""
+Run the behavioral training part of the experiment by calling "start_exp()" at the end of this script.
+Experiment parameters can be adjusted by choosing arguments for start_exp.
+"""
+
 import copy
 import os
 import random
@@ -10,13 +16,20 @@ import numpy as np
 from psychopy import visual, event, core
 
 from general import getstims_aloiselection, add_trainingtest, select_train, draw_gui, add_expinfo, \
-    list_of_dictlists_2csv
+    list_of_dictlists_2csv, pick_monitor, show_instr
 
 
-def make_labelgrid_positions(downshift_all=.25,
-                             downshift_upperrow=.1,
-                             x_stretch=.1):
-    lower_grid = [[-.5, 0], [0., 0.], [.5, 0], [-.5, -.5], [0, -.5], [.5, -.5]]
+def make_labelgrid_positions(x_offset=12,
+                             y_offset=8,
+                             downshift_all=4,
+                             downshift_upperrow=4,
+                             x_stretch=3):
+    """
+    Create grid coordinates to draw the labels on. Initial relative offsets can be set with x_offset and y_offset.
+    The other parameters stretch and shift the resulting grid. All units in degree visual angle.
+    """
+    lower_grid = [[-x_offset, 0], [0., 0.], [x_offset, 0],  # upper row
+                  [-x_offset, -y_offset], [0, -y_offset], [x_offset, -y_offset]]  # lower row
     # shift all labels down
     for labelpos in lower_grid:
         labelpos[1] -= downshift_all
@@ -28,7 +41,6 @@ def make_labelgrid_positions(downshift_all=.25,
     lower_grid[2][0] += x_stretch
     lower_grid[3][0] -= x_stretch
     lower_grid[5][0] += x_stretch
-
     return lower_grid
 
 
@@ -44,14 +56,15 @@ def add_label_positions(stim_sequence,
     return stim_sequence
 
 
-def add_distr_labels(stimdict_list, ndistractors=6, randorder=True):
+def add_distr_labels(stimdict_list,
+                     ndistractors=6,
+                     randorder=True):
     """
     Add distractor labels to stimulus dicts in a list.
     Each stimulus dict must already have an 'object_name' key.
     Distractors are chosen among all object names occuring in the list of stimuli.
     The number of distractors can be dialed down with ndistractors and their order can be randomized
     """
-
     # get names of all possible objects
     objects = np.unique([stimdict['object_name'] for stimdict in stimdict_list])
     # for each stimdict, remove target object and add subset of the remaining to the stim dicts 'distractors' key.
@@ -112,21 +125,55 @@ def make_block(behav_stims,
 
 def start_exp(nblocks=6,
               skipgui=False,
-              showboxes=False,
+              showtarget=False,
               csv_outdir='./behav_data',
-              img_size=(.5, .8),
-              img_pos=(0, .5),
-              escapekey='escape',
-              maxtime=5,
+              img_size=15,
+              label_size=1.4,
+              img_pos=(0, 3),
+              escapekey='q',
+              maxtime=4.,
               blanktime=.8,
               fixtime=.8,
-              feedbacktime=2):
-    # TODO: docstring
-    # TODO: instruction windows at start and between blocks
-    # TODO: get monitor specs from behav lab
+              feedbacktime=2,
+              monitorname='samsung_office'):
+    """
+    Run the behavioral training part of the experiment.
 
-    if not os.path.exists(csv_outdir):
-        os.makedirs(csv_outdir)
+    Parameters
+    ----------
+    nblocks : int
+        number of blocks (each including one full repetition of stimulus set) the experiment should have.
+    skipgui : bool
+        if True, no gui will be presented and dummy subject + experiment info will be used instead.
+        Only use this for testing purposes.
+    showtarget : bool
+        If True, always indicate the target with a green box. Only use for testing.
+    csv_outdir : str
+        Path to directory where output csv files are to be stored.
+    img_size : int
+        size of the RI percept image (in degree visual angle).
+    label_size : int
+        size of the text representing category labels (in degree visual angle).
+    img_pos : tuple
+        x/y coordinates of the image center (in degree visual angle)
+    escapekey : str
+        Key allowing user to escape the experiment. When experiment is escaped, a csv file will still be written!
+    maxtime : float
+        Maximum response time for the subject before next trial starts.
+    blanktime : float
+        duration of blank
+    fixtime : float
+        duration of fixation cross
+    feedbacktime : float
+        duration of feedback screen (i.e. green rectangle around correct category label)
+    monitorname : str
+        dummy name of used monitor (atm, only "samsung_office" and "samsung_behavlab" are allowed).
+
+    Returns
+    -------
+    None
+    """
+    # Maximum Duration with timeout of 5s and 6 blocks = 32 min (64*6*5/60)
 
     # get experiment info (draw gui or dummy values for testing)
     if skipgui:
@@ -141,38 +188,55 @@ def start_exp(nblocks=6,
                      'Rechtshaendig': True}
         exp_info_behav = draw_gui(fields=guifields)
 
+    if not os.path.exists(csv_outdir):
+        os.makedirs(csv_outdir)
     output_csv = pjoin(csv_outdir, 'sub%s_behav.csv' % exp_info_behav['SubjectID'])
+
+    # define instruction text
+    instr1 = "Vielen Dank, dass Sie an unserem Experiment teilnehmen.\n\n\n" \
+             "In dieser Studie moechten wir untersuchen, wie das menschliche Gehirn Objekte unter " \
+             "erschwerten Bedingungen erkennen kann.\n\n" \
+             "Dazu sehen Sie im Folgenden verschwommene Bilder von alltaeglichen Objekten. " \
+             "Zu jedem Bild werden Ihnen ausserdem sechs moegliche Objektnamen angezeigt.\n\n" \
+             "Ihre Aufgabe besteht nun darin, mit der Maus auf den Namen des angezeigten Objekts zu klicken. " \
+             "Bitte versuchen Sie hierbei so schnell und korrekt wie moeglich zu antworten.\n\n\n" \
+             "<Weiter mit der Leertaste>"
+    instr2 = "Falls Sie noch Fragen haben, wenden Sie sich bitte jetzt an die Versuchsleitung\n\n\n" \
+             "<Weiter mit der Leertaste>"
+
     # get stimuli and generate list of block sequences
     stimuli = get_behav_stims(exp_info_behav)
     blocks = [make_block(stimuli, blocknum) for blocknum in range(1, nblocks + 1)]
 
     # monitor, window, mouse
-    # mon = monitors.Monitor('Iiyama', width=60.96, distance=60)
-    wind = visual.Window(color='black', fullscr=True)  # monitor=mon
+    mon, wind = pick_monitor(mon_name=monitorname)
     mouse = event.Mouse(win=wind)
 
-    # initiate stimuli
-    fix = visual.ShapeStim(wind, size=20, lineWidth=5, closeShape=False, lineColor="white", name='fixation',
-                           units='pix', vertices=((0, -0.5), (0, 0.5), (0, 0), (-0.5, 0), (0.5, 0)))
+    # show welcoming instructions
+    for instruction in [instr1, instr2]:
+        show_instr(wind, message=instruction)
+
+    # stimuli
+    fix = visual.ShapeStim(wind, size=1, lineWidth=5, closeShape=False, lineColor="white", name='fixation',
+                           vertices=((0, -0.5), (0, 0.5), (0, 0), (-0.5, 0), (0.5, 0)))
     blank_ = visual.ShapeStim(wind, size=0, lineWidth=0, lineColor='black', name='blank')
-    img_stim = visual.ImageStim(wind, size=img_size, pos=img_pos, name='image_stim')  # , units='pix')
-    label_stim = visual.TextStim(wind, height=.1)  # alignVert='top',
-    # create list of distractor boxes and one target box (boxes are invisible but clickable)
-    box_kwargs = {'lineWidth': 3, 'width': .4, 'height': .3, 'opacity': 0, 'depth': -1.0, 'interpolate': True}
-    targetbox = visual.Rect(win=wind, name='targetbox', lineColor='green', **box_kwargs)
-    distboxes = [visual.Rect(win=wind, name='distbox_%i' % idx, lineColor='white', **box_kwargs)
-                 for idx in range(1, 6)]
+    img_stim = visual.ImageStim(wind, size=img_size, pos=img_pos, name='image_stim', units='deg')
+    label_stim = visual.TextStim(wind, height=label_size, units='deg', color='gray')
+
+    # list of distractor boxes and one target box (boxes are invisible but clickable)
+    box_kwargs = {'lineWidth': 3, 'width': 11, 'height': label_size + 1.2,
+                  'opacity': 1, 'depth': -1.0, 'interpolate': True, 'lineColor': 'gray'}
+    distboxes = [visual.Rect(win=wind, name='distbox_%i' % idx, **box_kwargs) for idx in range(1, 6)]
+    targetbox = visual.Rect(win=wind, name='targetbox', **box_kwargs)
+    if showtarget:
+        targetbox.setLineColor('green')
 
     # clocks
     timeout = core.Clock()
     blank_timer = core.Clock()
     fix_timer = core.Clock()
     feedback_timer = core.Clock()
-
-    if showboxes:
-        targetbox.setOpacity(1)
-        for distbox in distboxes:
-            distbox.setOpacity(1)
+    trialnum=0
 
     # block loop
     escapebool = False
@@ -180,18 +244,21 @@ def start_exp(nblocks=6,
         if escapebool:
             break
 
+        # show inter block instructions
+        inter_block_message = "Als naechstes beginnt Block Nummer %i.\n\n" \
+                              "Wenn Sie bereit sind, koennen Sie den naechsten Block selbststaendig starten" \
+                              "<Weiter mit der Leertaste> " % block[0]['block']
+        show_instr(wind, message=inter_block_message)
+
         # trial loop
         for trial in block:
+            trialnum+=1
             if escapebool:
                 break
 
             # reset stuff
             keys = event.getKeys(keyList=[escapekey])
-            mouse.setPos((0, 0))
-            if not showboxes:
-                targetbox.setOpacity(0)
-                for distbox in distboxes:
-                    distbox.setOpacity(0)
+            mouse.setPos((0, img_pos[1] - (img_size / 2) - 2))
 
             # Show fixation
             fix_timer.reset()
@@ -200,6 +267,9 @@ def start_exp(nblocks=6,
                 wind.flip()
 
             # show display
+            mouse.setVisible(1)
+            if not showtarget:
+                targetbox.setLineColor('gray')
             timeout.reset()
             while not trial['mouse_pressed'] and timeout.getTime() < maxtime:
                 # draw image
@@ -237,7 +307,7 @@ def start_exp(nblocks=6,
             # show feedback screen
             feedback_timer.reset()
             while feedback_timer.getTime() < feedbacktime:
-                targetbox.setOpacity(1)
+                targetbox.setLineColor('green')
                 # draw image
                 img_stim.setImage(trial['file_path'])
                 img_stim.draw()
@@ -257,21 +327,19 @@ def start_exp(nblocks=6,
                 wind.flip()
 
             # show blank
+            mouse.setVisible(0)
             blank_timer.reset()
             while blank_timer.getTime() < blanktime:
                 blank_.draw()
                 wind.flip()
 
-            # TODO: escape via escapekey
+            # escape via escapekey
             if keys and escapekey in keys:
                 escapebool = True
 
             trial['ran'] = True
             trial['keys'] = keys
-            print(trial['accuracy'])
-            print(trial['rt'])
-            print(trial['clicked_distractor'])
-            print(trial['keys'])
+            print(trialnum)
 
     # logg responses and trial info
     list_of_dictlists_2csv(blocks, output_csv)
@@ -282,4 +350,6 @@ def start_exp(nblocks=6,
 
 
 if __name__ == '__main__':
-    start_exp(skipgui=True, showboxes=False)
+    start_exp(skipgui=False,
+              showtarget=False,
+              monitorname='samsung_behavlab')

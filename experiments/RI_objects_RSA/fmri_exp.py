@@ -16,7 +16,7 @@ import numpy as np
 from numpy.random import exponential
 from psychopy import core, visual, event
 
-from general import getstims_aloiselection, list_of_dictlists_2csv, add_expinfo, draw_gui
+from general import getstims_aloiselection, list_of_dictlists_2csv, add_expinfo, draw_gui, pick_monitor
 
 
 def showinstr(instring='Weiter mit der Leertaste'):
@@ -109,7 +109,11 @@ def add_empty_responses(stimsequence):
 def add_catches(stimlist,
                 num_catches=10,
                 shuffle_inlist=True):
-    # TODO: docstring
+    """
+    Add catch trials for a 1-back taks to a given stimulus sequence by repeating randomly chosen trials.
+    Catch trials are not allowed To occur in first or last position of the sequence, nor can two catch trials follow
+    one another. Also adds the "trial_type" key to each stimulus dict with values "normal" or "catch".
+    """
 
     # assert that we didn't specify too many catch trials given our constraints
     assertplus2(stimlist, range(num_catches))
@@ -149,10 +153,10 @@ def add_catches(stimlist,
     return stimlist_copy
 
 
-def makejitter_shiftruncexpon(miniti=800.,
-                              maxiti=1500.,
-                              aviti=1000.,
-                              ntrials=141):
+def sample_itis_shiftruncexpon(miniti=800.,
+                               maxiti=1500.,
+                               aviti=1000.,
+                               ntrials=141):
     """
     Sample ITIs from truncated exponential distribution which is shifted by a minimum value.
     """
@@ -166,17 +170,17 @@ def makejitter_shiftruncexpon(miniti=800.,
     return shifted
 
 
-def add_jitter(stim_sequence,
-               min_iti=.8,
-               max_iti=1.5,
-               av_iti=1.,
-               jitter='shiftruncexpon'):
+def add_itis(stim_sequence,
+             min_iti=.8,
+             max_iti=1.5,
+             av_iti=1.,
+             jitter='shiftruncexpon'):
     """
     Add jittered inter trial intervals to a stimulus sequence.
     """
     if not jitter == 'shiftruncexpon':
         raise IOError('only the jitter type shifted truncated exponential is supported for now')
-    itis = makejitter_shiftruncexpon(miniti=min_iti, maxiti=max_iti, aviti=av_iti, ntrials=len(stim_sequence))
+    itis = sample_itis_shiftruncexpon(miniti=min_iti, maxiti=max_iti, aviti=av_iti, ntrials=len(stim_sequence))
     for stim, iti in zip(stim_sequence, itis):
         stim['iti'] = iti
     return stim_sequence
@@ -212,7 +216,7 @@ def make_run_seq(stimdicts,
         block_sequence = add_expinfo(block_sequence, experiment_info)
         block_sequence = add_empty_responses(block_sequence)
         block_sequence = add_catches(block_sequence)
-        block_sequence = add_jitter(block_sequence, jitter='shiftruncexpon')
+        block_sequence = add_itis(block_sequence, jitter='shiftruncexpon')
         for trial in block_sequence:
             trial['block'] = block
         run_sequences.append(block_sequence)
@@ -226,23 +230,27 @@ def present_run(run_sequence,
                 escape_key='escape',
                 trigger_key='t',
                 fullscreen=True,
-                stimsize=(400, 400),
+                stimsize=(10, 10),
                 fixdur=.500,
                 stimdur=1.,
-                skip_volumes=4):
+                skip_volumes=4,
+                monitorname='skyra_projector'):
     """
+
+    """
+    # TODO: convert to degree visual angle!
     # TODO: docstring
     # TODO: get monitor specifications from scanner and the viewing distance --> specify viewing angle!
     # TODO: use countdown timing (more precise)
     # TODO: transform presentation times into multiples of framerate, depends on monitor (but probably 60 Hz).
-    """
 
     # # set up monitor
     # mon = monitors.Monitor('Iiyama', width=60.96, distance=60)
     # mon.setSizePix((1920, 1080))
 
     # Initiate  windows, stimuli, and alike
-    window_ = visual.Window(color='black', fullscr=fullscreen, units='pix')  # monitor=mon
+    mon, window_ = pick_monitor(monitorname)
+    # window_ = visual.Window(color='black', fullscr=fullscreen, units='pix')  # monitor=mon
     event.Mouse(visible=False, win=window_)
     fixation = visual.ShapeStim(window_, size=20, lineWidth=5, closeShape=False, lineColor="white",
                                 vertices=((0, -0.5), (0, 0.5), (0, 0), (-0.5, 0), (0.5, 0)))
@@ -258,35 +266,38 @@ def present_run(run_sequence,
     firsttrig_time = core.Clock()
     skipvol_time = core.Clock()
 
-    # TODO: clarify how to deal with first few volumes. Discarded automatically? Or do I have to do so in my script?
-    # what does this do with our stimulus onset timing?
-
-    # do nothing during first few scans
-    skipvol_instr = visual.TextStim(window_, text='dummy scans', color='white', height=20)
-    skipvol_instr.draw()
-    window_.flip()
-    for i in range(skip_volumes):
-        dummy_keys = event.waitKeys(keyList=[trigger_key], timeStamped=skipvol_time)
+    """
+    Scanner warm up
+    """
 
     # Wait for first scanner pulse
-    firsttrig_instr = visual.TextStim(window_, text='waiting for first valid scanner pulse', color='white', height=20)
+    firsttrig_instr = visual.TextStim(window_, text='waiting for first scanner pulse', color='white', height=2)
     firsttrig_instr.draw()
     window_.flip()
     firsttrig = event.waitKeys(keyList=[trigger_key], timeStamped=firsttrig_time)
 
-    # block loop
+    # do nothing during first few scans, which will be discarded before analysis
     global_onset_time.reset()
+    skipvol_instr = visual.TextStim(window_, text='dummy scans', color='white', height=2)
+    skipvol_instr.draw()
+    window_.flip()
+    for i in range(skip_volumes-1):
+        dummy_keys = event.waitKeys(keyList=[trigger_key], timeStamped=skipvol_time)
+
+    """
+    Start task
+    """
+
+    # block loop
     for stim_sequence in run_sequence:
 
         if escape_bool:
-            print('escape bool was there')
             break
 
         # trial loop
         for trial in stim_sequence:
 
             if escape_bool:
-                print('escape bool was there')
                 break
 
             # wait for keyboard input, time stamp with clock stim_rt
@@ -352,7 +363,8 @@ def run_first_session(stimbasedir,
                       outcsvdir,
                       nruns=4,
                       blocksprun=4,
-                      testing=False):
+                      testing=False,
+                      mon_name='skyra_projector'):
     # create output directory
     if not os.path.exists(outcsvdir):
         os.makedirs(outcsvdir)
@@ -378,7 +390,7 @@ def run_first_session(stimbasedir,
         csv_fname = pjoin(outcsvdir,
                           'sub%s_session%s_run%i_fmri.csv' % (exp_info['SubjectID'], exp_info['Sitzung'], run))
         # present one functional run
-        present_run(run_seq, output_csv=csv_fname)
+        present_run(run_seq, output_csv=csv_fname, monitorname=mon_name)
 
     return None
 
@@ -387,7 +399,4 @@ if __name__ == '__main__':
     stimdir = '/Users/Oliver/ri_hmax/experiments/RI_objects_RSA/Stimuli/'
     outdir = os.path.dirname(os.path.realpath(__file__))
 
-    run_first_session(stimbasedir=stimdir, outcsvdir=outdir)  # , testing=True)
-
-    # exp_info = OrderedDict({'Alter': ' 1', 'Geschlecht': 'maennlich', 'Rechtshaendig': True, 'Sitzung': 1,
-    #                         'SubjectID': '1', 'date': u'2018_Nov_06_1408', 'exp_name': 'retina_rep'})
+    run_first_session(stimbasedir=stimdir, outcsvdir=outdir, mon_name='samsung_office', testing=True)  # , testing=True)

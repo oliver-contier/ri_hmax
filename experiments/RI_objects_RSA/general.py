@@ -8,7 +8,7 @@ import random
 from collections import OrderedDict
 
 import numpy as np
-from psychopy import gui, core, data
+from psychopy import gui, core, data, monitors, visual, event
 
 
 def draw_gui(exp_name='RI_RSA',
@@ -197,4 +197,42 @@ def list_of_dictlists_2csv(dictlistslist, csv_fname):
         dict_writer.writeheader()
         for dictlist in dictlistslist:
             dict_writer.writerows(dictlist)
+    return None
+
+
+def pick_monitor(mon_name='samsung_office'):
+    """
+    Create a psychopy monitor instance depending on where you want to display the experiment.
+    """
+    allowed = ['samsung_office', 'samsung_behavlab']
+    if mon_name not in allowed:
+        raise IOError('Could not find settings for mon : %s' % mon_name)
+
+    mon, win = None, None
+    if mon_name == 'samsung_office':
+        res = (1920, 1080)
+        mon = monitors.Monitor(mon_name, width=60., distance=60.)
+        mon.setSizePix(res)
+        win = visual.Window(monitor=mon, size=res, color='black', colorSpace='rgb', units='deg',
+                            screen=0, fullscr=True)
+    if mon_name == 'samsung_behavlab':
+        res = (1920, 1080)
+        mon = monitors.Monitor(mon_name, width=52.2, distance=60.)
+        mon.setSizePix(res)
+        win = visual.Window(monitor=mon, size=res, color='black', colorSpace='rgb', units='deg',
+                            screen=0, fullscr=True)
+    # mon.save()
+    # TODO: 'skyra_projector'
+
+    return mon, win
+
+
+def show_instr(window_instance,
+               message="Lorem ipsum dolor sit amet.",
+               textsize=1):
+    textstim = visual.TextStim(window_instance, height=textsize, units='deg', wrapWidth=40)
+    textstim.setText(message)
+    textstim.draw()
+    window_instance.flip()
+    event.waitKeys(keyList=['space'])
     return None
