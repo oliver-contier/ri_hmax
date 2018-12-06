@@ -10,9 +10,15 @@ Experiment parameters can be adjusted by choosing arguments for start_exp.
 import copy
 import os
 import random
+# add different psychopy version to path
+import sys
 from os.path import join as pjoin
 
 import numpy as np
+
+# lab pcs run older psychopy version (1.85.3) which throws unexpected hardware errors.
+# since we're not root and cannot bugfix, we source a cloned github repo of desired version.
+sys.path.insert(0, './PsychoPy-1.90.3/')
 from psychopy import visual, event, core
 
 from general import getstims_aloiselection, add_trainingtest, select_train, draw_gui, add_expinfo, \
@@ -109,11 +115,15 @@ def add_behav_responses(stim_sequence):
 
 
 def make_block(behav_stims,
-               blocknumber):
+               blocknumber,
+               saveram=False):
     """
     Take our gathered subset of RI stimuli
     """
-    behav_stims_copy = copy.deepcopy(behav_stims)
+    if saveram:
+        behav_stims_copy = behav_stims
+    else:
+        behav_stims_copy = copy.deepcopy(behav_stims)
     random.shuffle(behav_stims_copy)
     behav_stims_copy = add_label_positions(behav_stims_copy)  # add target and distractor position
     behav_stims_copy = add_distr_labels(behav_stims_copy)  # add distractor labels
@@ -192,29 +202,13 @@ def start_exp(nblocks=6,
         os.makedirs(csv_outdir)
     output_csv = pjoin(csv_outdir, 'sub%s_behav.csv' % exp_info_behav['SubjectID'])
 
-    # define instruction text
-    instr1 = "Vielen Dank, dass Sie an unserem Experiment teilnehmen.\n\n\n" \
-             "In dieser Studie moechten wir untersuchen, wie das menschliche Gehirn Objekte unter " \
-             "erschwerten Bedingungen erkennen kann.\n\n" \
-             "Dazu sehen Sie im Folgenden verschwommene Bilder von alltaeglichen Objekten. " \
-             "Zu jedem Bild werden Ihnen ausserdem sechs moegliche Objektnamen angezeigt.\n\n" \
-             "Ihre Aufgabe besteht nun darin, mit der Maus auf den Namen des angezeigten Objekts zu klicken. " \
-             "Bitte versuchen Sie hierbei so schnell und korrekt wie moeglich zu antworten.\n\n\n" \
-             "<Weiter mit der Leertaste>"
-    instr2 = "Falls Sie noch Fragen haben, wenden Sie sich bitte jetzt an die Versuchsleitung\n\n\n" \
-             "<Weiter mit der Leertaste>"
-
-    # get stimuli and generate list of block sequences
-    stimuli = get_behav_stims(exp_info_behav)
-    blocks = [make_block(stimuli, blocknum) for blocknum in range(1, nblocks + 1)]
-
     # monitor, window, mouse
     mon, wind = pick_monitor(mon_name=monitorname)
     mouse = event.Mouse(win=wind)
 
-    # show welcoming instructions
-    for instruction in [instr1, instr2]:
-        show_instr(wind, message=instruction)
+    # get stimuli and generate list of block sequences
+    stimuli = get_behav_stims(exp_info_behav)
+    blocks = [make_block(stimuli, blocknum) for blocknum in range(1, nblocks + 1)]
 
     # stimuli
     fix = visual.ShapeStim(wind, size=1, lineWidth=5, closeShape=False, lineColor="white", name='fixation',
@@ -231,12 +225,29 @@ def start_exp(nblocks=6,
     if showtarget:
         targetbox.setLineColor('green')
 
+    # instruction text
+    instr1 = "Vielen Dank, dass Sie an unserem Experiment teilnehmen.\n\n\n" \
+             "In dieser Studie moechten wir untersuchen, wie das menschliche Gehirn Objekte unter " \
+             "erschwerten Bedingungen erkennen kann.\n\n" \
+             "Dazu sehen Sie im Folgenden verschwommene Bilder von alltaeglichen Objekten " \
+             "aus unterschiedlichen Blickwinkeln. " \
+             "Zu jedem Bild werden Ihnen ausserdem sechs moegliche Objektnamen angezeigt.\n\n" \
+             "Ihre Aufgabe besteht nun darin, mit der Maus auf den Namen des angezeigten Objekts zu klicken. " \
+             "Bitte versuchen Sie hierbei so schnell und korrekt wie moeglich zu antworten.\n\n\n" \
+             "<Weiter mit der Leertaste>"
+    instr2 = "Falls Sie noch Fragen haben, wenden Sie sich bitte jetzt an die Versuchsleitung\n\n\n" \
+             "<Weiter mit der Leertaste>"
+
+    # show welcoming instructions
+    for instruction in [instr1, instr2]:
+        show_instr(wind, message=instruction)
+
     # clocks
     timeout = core.Clock()
     blank_timer = core.Clock()
     fix_timer = core.Clock()
     feedback_timer = core.Clock()
-    trialnum=0
+    trialnum = 0
 
     # block loop
     escapebool = False
@@ -246,13 +257,13 @@ def start_exp(nblocks=6,
 
         # show inter block instructions
         inter_block_message = "Als naechstes beginnt Block Nummer %i.\n\n" \
-                              "Wenn Sie bereit sind, koennen Sie den naechsten Block selbststaendig starten" \
+                              "Wenn Sie bereit sind, koennen Sie den naechsten Block selbststaendig starten.\n\n" \
                               "<Weiter mit der Leertaste> " % block[0]['block']
         show_instr(wind, message=inter_block_message)
 
         # trial loop
         for trial in block:
-            trialnum+=1
+            trialnum += 1
             if escapebool:
                 break
 
@@ -350,6 +361,6 @@ def start_exp(nblocks=6,
 
 
 if __name__ == '__main__':
-    start_exp(skipgui=False,
+    start_exp(skipgui=True,
               showtarget=False,
               monitorname='samsung_behavlab')
