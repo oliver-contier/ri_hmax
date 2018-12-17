@@ -229,8 +229,7 @@ def present_run(run_sequence,
                 response_key='space',
                 escape_key='escape',
                 trigger_key='t',
-                fullscreen=True,
-                stimsize=(10, 10),
+                stimsize=15,
                 fixdur=.500,
                 stimdur=1.,
                 skip_volumes=4,
@@ -238,21 +237,15 @@ def present_run(run_sequence,
     """
 
     """
-    # TODO: convert to degree visual angle!
     # TODO: docstring
-    # TODO: get monitor specifications from scanner and the viewing distance --> specify viewing angle!
+    # TODO: get monitor specifications from scanner (resolution, width, viewing distance, etc.)
     # TODO: use countdown timing (more precise)
     # TODO: transform presentation times into multiples of framerate, depends on monitor (but probably 60 Hz).
 
-    # # set up monitor
-    # mon = monitors.Monitor('Iiyama', width=60.96, distance=60)
-    # mon.setSizePix((1920, 1080))
-
     # Initiate  windows, stimuli, and alike
     mon, window_ = pick_monitor(monitorname)
-    # window_ = visual.Window(color='black', fullscr=fullscreen, units='pix')  # monitor=mon
     event.Mouse(visible=False, win=window_)
-    fixation = visual.ShapeStim(window_, size=20, lineWidth=5, closeShape=False, lineColor="white",
+    fixation = visual.ShapeStim(window_, size=1, lineWidth=5, closeShape=False, lineColor="white",
                                 vertices=((0, -0.5), (0, 0.5), (0, 0), (-0.5, 0), (0.5, 0)))
     blank = visual.ShapeStim(window_, size=0, lineWidth=0, lineColor='black')
     stim = visual.ImageStim(window_, size=stimsize)

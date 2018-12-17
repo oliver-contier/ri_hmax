@@ -5,6 +5,7 @@ import csv
 import glob
 import os
 import random
+import subprocess
 from collections import OrderedDict
 
 import numpy as np
@@ -202,37 +203,49 @@ def list_of_dictlists_2csv(dictlistslist, csv_fname):
 
 def pick_monitor(mon_name='samsung_office'):
     """
-    Create a psychopy monitor instance depending on where you want to display the experiment.
+    Create a psychopy monitor and window instance depending on where you want to display the experiment.
     """
-    allowed = ['samsung_office', 'samsung_behavlab']
+    allowed = ['samsung_office', 'samsung_behavlab', 'soundproof_lab']
     if mon_name not in allowed:
         raise IOError('Could not find settings for mon : %s' % mon_name)
-
     mon, win = None, None
     if mon_name == 'samsung_office':
         res = (1920, 1080)
         mon = monitors.Monitor(mon_name, width=60., distance=60.)
         mon.setSizePix(res)
-        win = visual.Window(monitor=mon, size=res, color='black', colorSpace='rgb', units='deg',
-                            screen=0, fullscr=True)
-    if mon_name == 'samsung_behavlab':
+        win = visual.Window(monitor=mon, size=res, color='black', units='deg', screen=0, fullscr=True)
+    elif mon_name == 'samsung_behavlab':
         res = (1920, 1080)
         mon = monitors.Monitor(mon_name, width=52.2, distance=60.)
         mon.setSizePix(res)
-        win = visual.Window(monitor=mon, size=res, color='black', colorSpace='rgb', units='deg',
-                            screen=0, fullscr=True)
+        win = visual.Window(monitor=mon, size=res, color='black', units='deg', screen=0, fullscr=True)
+    elif mon_name == 'soundproof_lab':
+        res = (1920, 1080)
+        mon = monitors.Monitor(mon_name, width=53, distance=60.)  # distance = 77.5
+        mon.setSizePix(res)
+        win = visual.Window(monitor=mon, size=res, color='black', units='deg', screen=0, fullscr=True)
     # mon.save()
     # TODO: 'skyra_projector'
-
     return mon, win
+
+
+def movemouse_xdotool(x=0, y=0):
+    """
+    Execute shell command (xdotool) to reset mouse position when psychopy's pyglet module throws an error (as is
+    the case in our soundproof_lab).
+    """
+    subprocess.Popen(["xdotool", "mousemove", str(x), str(y)])
+    return None
 
 
 def show_instr(window_instance,
                message="Lorem ipsum dolor sit amet.",
-               textsize=1):
-    textstim = visual.TextStim(window_instance, height=textsize, units='deg', wrapWidth=40)
+               textsize=1,
+               unit='deg',
+               continue_key='space'):
+    textstim = visual.TextStim(window_instance, height=textsize, units=unit, wrapWidth=40)
     textstim.setText(message)
     textstim.draw()
     window_instance.flip()
-    event.waitKeys(keyList=['space'])
+    event.waitKeys(keyList=[continue_key])
     return None

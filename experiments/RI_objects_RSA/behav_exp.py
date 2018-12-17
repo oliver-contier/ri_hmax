@@ -8,6 +8,7 @@ Experiment parameters can be adjusted by choosing arguments for start_exp.
 """
 
 import copy
+import csv
 import os
 import random
 # add different psychopy version to path
@@ -18,11 +19,11 @@ import numpy as np
 
 # lab pcs run older psychopy version (1.85.3) which throws unexpected hardware errors.
 # since we're not root and cannot bugfix, we source a cloned github repo of desired version.
-sys.path.insert(0, './PsychoPy-1.90.3/')
+# sys.path.insert(0, './PsychoPy-1.90.3/')
 from psychopy import visual, event, core
 
 from general import getstims_aloiselection, add_trainingtest, select_train, draw_gui, add_expinfo, \
-    list_of_dictlists_2csv, pick_monitor, show_instr
+    pick_monitor, show_instr, movemouse_xdotool
 
 
 def make_labelgrid_positions(x_offset=12,
@@ -116,20 +117,41 @@ def add_behav_responses(stim_sequence):
 
 def make_block(behav_stims,
                blocknumber,
-               saveram=False):
+               deepcopy=False,
+               returnarray=True):
     """
-    Take our gathered subset of RI stimuli
+    Take our gathered subset of RI stimuli and make it into a block sequence, by adding keys for labels and their
+    positions, responses, and block number.
+
+    Parameters
+    ----------
+    behav_stims : list
+        list of behavioral stimuli, should be returned by get_behav_stims.
+    blocknumber : int
+        number of the current block. will be added as key to stimulus dicts.
+    deepcopy : bool
+        if true, creates a deepcopy of the original stimulus sequence. This way, you could be on the safe side that
+        the original stims will not be messed up.
+    returnarray : bool
+        returns stimulus sequence as an array instead of a list.
+
+    Returns
+    -------
+    behav_stims_copy : list
+        list of stimulus dicts representing a block in the behavioral experiment.
     """
-    if saveram:
-        behav_stims_copy = behav_stims
-    else:
+    if deepcopy:
         behav_stims_copy = copy.deepcopy(behav_stims)
+    else:
+        behav_stims_copy = behav_stims
     random.shuffle(behav_stims_copy)
     behav_stims_copy = add_label_positions(behav_stims_copy)  # add target and distractor position
     behav_stims_copy = add_distr_labels(behav_stims_copy)  # add distractor labels
     behav_stims_copy = add_behav_responses(behav_stims_copy)
     for stimdict in behav_stims_copy:  # add block number
         stimdict['block'] = blocknumber
+    if returnarray:
+        behav_stims_copy = np.array(behav_stims_copy)
     return behav_stims_copy
 
 
@@ -203,19 +225,25 @@ def start_exp(nblocks=6,
     output_csv = pjoin(csv_outdir, 'sub%s_behav.csv' % exp_info_behav['SubjectID'])
 
     # monitor, window, mouse
-    mon, wind = pick_monitor(mon_name=monitorname)
+    if monitorname:
+        mon, wind = pick_monitor(mon_name=monitorname)
+    else:
+        wind = visual.Window(color='black', colorSpace='rgb', units='deg', fullscr=True)
     mouse = event.Mouse(win=wind)
+
+    # x and y screen resolution (pixels), needed for mouse reset via xdotool in soundprooflab
+    xres, yres = mon.getSizePix()
 
     # get stimuli and generate list of block sequences
     stimuli = get_behav_stims(exp_info_behav)
-    blocks = [make_block(stimuli, blocknum) for blocknum in range(1, nblocks + 1)]
 
     # stimuli
     fix = visual.ShapeStim(wind, size=1, lineWidth=5, closeShape=False, lineColor="white", name='fixation',
                            vertices=((0, -0.5), (0, 0.5), (0, 0), (-0.5, 0), (0.5, 0)))
     blank_ = visual.ShapeStim(wind, size=0, lineWidth=0, lineColor='black', name='blank')
     img_stim = visual.ImageStim(wind, size=img_size, pos=img_pos, name='image_stim', units='deg')
-    label_stim = visual.TextStim(wind, height=label_size, units='deg', color='gray')
+    distr_label = visual.TextStim(wind, height=label_size, units='deg', color='gray')
+    target_label = visual.TextStim(wind, height=label_size, units='deg', color='gray')
 
     # list of distractor boxes and one target box (boxes are invisible but clickable)
     box_kwargs = {'lineWidth': 3, 'width': 11, 'height': label_size + 1.2,
@@ -235,7 +263,9 @@ def start_exp(nblocks=6,
              "Ihre Aufgabe besteht nun darin, mit der Maus auf den Namen des angezeigten Objekts zu klicken. " \
              "Bitte versuchen Sie hierbei so schnell und korrekt wie moeglich zu antworten.\n\n\n" \
              "<Weiter mit der Leertaste>"
-    instr2 = "Falls Sie noch Fragen haben, wenden Sie sich bitte jetzt an die Versuchsleitung\n\n\n" \
+    instr2 = "Nach jedem Durchgang bekommen Sie Feedback ueber die korrekte Antwort. Dazu leuchtet die korrekte " \
+             "Antwortalternative gruen auf.\n\n" \
+             "Falls Sie noch Fragen haben, wenden Sie sich bitte jetzt an die Versuchsleitung\n\n\n" \
              "<Weiter mit der Leertaste>"
 
     # show welcoming instructions
@@ -249,9 +279,19 @@ def start_exp(nblocks=6,
     feedback_timer = core.Clock()
     trialnum = 0
 
+    # start csv writing
+    dummyblock = make_block(stimuli, 99)
+    header_keys = dummyblock[0].keys()
+    dict_writer = csv.DictWriter(open(output_csv, 'wb'), header_keys)
+    dict_writer.writeheader()
+
     # block loop
     escapebool = False
-    for block in blocks:
+    for blocknum in range(1, nblocks + 1):
+
+        # make block sequence
+        block = make_block(stimuli, blocknum)
+
         if escapebool:
             break
 
@@ -264,12 +304,19 @@ def start_exp(nblocks=6,
         # trial loop
         for trial in block:
             trialnum += 1
+
             if escapebool:
                 break
 
             # reset stuff
             keys = event.getKeys(keyList=[escapekey])
-            mouse.setPos((0, img_pos[1] - (img_size / 2) - 2))
+            target_label.setColor('gray')
+            if not showtarget:
+                targetbox.setLineColor('gray')
+            if monitorname == 'soundproof_lab':
+                movemouse_xdotool(float(xres)/2, (float(yres)/2) + 200)  # unit: pixels
+            else:
+                mouse.setPos((0, img_pos[1] - (img_size / 2) - 2))  # unit: degree vis angle
 
             # Show fixation
             fix_timer.reset()
@@ -279,24 +326,22 @@ def start_exp(nblocks=6,
 
             # show display
             mouse.setVisible(1)
-            if not showtarget:
-                targetbox.setLineColor('gray')
             timeout.reset()
             while not trial['mouse_pressed'] and timeout.getTime() < maxtime:
                 # draw image
                 img_stim.setImage(trial['file_path'])
                 img_stim.draw()
                 # draw target label and box
-                label_stim.setText(trial['object_name'])
-                label_stim.setPos(trial['target_pos'])
-                label_stim.draw()
+                target_label.setText(trial['object_name'])
+                target_label.setPos(trial['target_pos'])
+                target_label.draw()
                 targetbox.setPos(trial['target_pos'])
                 targetbox.draw()
                 # draw distractor labels and boxes
                 for distposition, distlabel, distbox in zip(trial['distr_pos'], trial['distractors'], distboxes):
-                    label_stim.setPos(distposition)
-                    label_stim.setText(distlabel)
-                    label_stim.draw()
+                    distr_label.setPos(distposition)
+                    distr_label.setText(distlabel)
+                    distr_label.draw()
                     distbox.setPos(distposition)
                     distbox.draw()
                 wind.flip()
@@ -323,16 +368,17 @@ def start_exp(nblocks=6,
                 img_stim.setImage(trial['file_path'])
                 img_stim.draw()
                 # draw target label and box
-                label_stim.setText(trial['object_name'])
-                label_stim.setPos(trial['target_pos'])
-                label_stim.draw()
+                target_label.setText(trial['object_name'])
+                target_label.setPos(trial['target_pos'])
+                target_label.setColor('green')
+                target_label.draw()
                 targetbox.setPos(trial['target_pos'])
                 targetbox.draw()
                 # draw distractor labels and boxes
                 for distposition, distlabel, distbox in zip(trial['distr_pos'], trial['distractors'], distboxes):
-                    label_stim.setPos(distposition)
-                    label_stim.setText(distlabel)
-                    label_stim.draw()
+                    distr_label.setPos(distposition)
+                    distr_label.setText(distlabel)
+                    distr_label.draw()
                     distbox.setPos(distposition)
                     distbox.draw()
                 wind.flip()
@@ -352,8 +398,15 @@ def start_exp(nblocks=6,
             trial['keys'] = keys
             print(trialnum)
 
-    # logg responses and trial info
-    list_of_dictlists_2csv(blocks, output_csv)
+            # write data of current trial
+            dict_writer.writerow(trial)
+
+    # # logg all data after loops have finished
+    # list_of_dictlists_2csv(blocks, output_csv)
+
+    # final instruction screen
+    show_instr(wind, "Vielen Dank! Das Experiment ist beendet. "
+                     "Sie koennen sich jetzt an die Versuchsleitung wenden.")
 
     wind.close()
     core.quit()
@@ -361,6 +414,6 @@ def start_exp(nblocks=6,
 
 
 if __name__ == '__main__':
-    start_exp(skipgui=True,
+    start_exp(skipgui=False,
               showtarget=False,
-              monitorname='samsung_behavlab')
+              monitorname='soundproof_lab')
