@@ -221,7 +221,7 @@ def pick_monitor(mon_name='samsung_office'):
         win = visual.Window(monitor=mon, size=res, color='black', units='deg', screen=0, fullscr=True)
     elif mon_name == 'soundproof_lab':
         res = (1920, 1080)
-        mon = monitors.Monitor(mon_name, width=53, distance=60.)  # distance = 77.5
+        mon = monitors.Monitor(mon_name, width=53., distance=80.)  # cheat distance: 60, actual distance: 81.3
         mon.setSizePix(res)
         win = visual.Window(monitor=mon, size=res, color='black', units='deg', screen=0, fullscr=True)
     # mon.save()
@@ -229,18 +229,41 @@ def pick_monitor(mon_name='samsung_office'):
     return mon, win
 
 
-def movemouse_xdotool(x=0, y=0):
+def movemouse_xdotool(psychopy_mon,
+                      xoffset=0,
+                      yoffset=230):
     """
     Execute shell command (xdotool) to reset mouse position when psychopy's pyglet module throws an error (as is
     the case in our soundproof_lab).
+
+    Note that x and y coordinates start at zero in the upper left corner,
+    so xoffset moves to the right, and yoffset moves down.
     """
-    subprocess.Popen(["xdotool", "mousemove", str(x), str(y)])
+    xres, yres = psychopy_mon.getSizePix()
+    subprocess.Popen(["xdotool", "mousemove",
+                      str((float(xres)/2) + xoffset),
+                      str((float(yres)/2) + yoffset)])
+    return None
+
+
+def avoidcorner_xdotool(psychopy_mon,
+                        xoffset=0,
+                        yoffset=200,
+                        quiesce=100):
+    """
+    Avoid annoying gnome feature (hot corners) that shows a workspace overview when the mouse hits the upper-left corner
+    by simply re-positioning the mouse to a neutral position whenever this happens.
+    """
+    xres, yres = psychopy_mon.getSizePix()
+    subprocess.Popen(['xdotool', 'behave_screen_edge', '--quiesce', str(quiesce), 'top-left', 'mousemove',
+                      str((float(xres)/2) + xoffset),
+                      str((float(yres)/2) + yoffset)])
     return None
 
 
 def show_instr(window_instance,
                message="Lorem ipsum dolor sit amet.",
-               textsize=1,
+               textsize=.8,
                unit='deg',
                continue_key='space'):
     textstim = visual.TextStim(window_instance, height=textsize, units=unit, wrapWidth=40)

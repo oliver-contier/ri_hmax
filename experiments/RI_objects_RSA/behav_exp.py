@@ -12,25 +12,20 @@ import csv
 import os
 import random
 # add different psychopy version to path
-import sys
 from os.path import join as pjoin
 
 import numpy as np
-
-# lab pcs run older psychopy version (1.85.3) which throws unexpected hardware errors.
-# since we're not root and cannot bugfix, we source a cloned github repo of desired version.
-# sys.path.insert(0, './PsychoPy-1.90.3/')
 from psychopy import visual, event, core
 
 from general import getstims_aloiselection, add_trainingtest, select_train, draw_gui, add_expinfo, \
-    pick_monitor, show_instr, movemouse_xdotool
+    pick_monitor, show_instr, movemouse_xdotool, avoidcorner_xdotool
 
 
 def make_labelgrid_positions(x_offset=12,
                              y_offset=8,
-                             downshift_all=4,
-                             downshift_upperrow=4,
-                             x_stretch=3):
+                             downshift_all=1,
+                             downshift_upperrow=5,
+                             x_stretch=-2.5):
     """
     Create grid coordinates to draw the labels on. Initial relative offsets can be set with x_offset and y_offset.
     The other parameters stretch and shift the resulting grid. All units in degree visual angle.
@@ -159,11 +154,11 @@ def start_exp(nblocks=6,
               skipgui=False,
               showtarget=False,
               csv_outdir='./behav_data',
-              img_size=15,
-              label_size=1.4,
-              img_pos=(0, 3),
+              img_size=13,
+              label_size=1.,
+              img_pos=(0, 2.5),
               escapekey='q',
-              maxtime=4.,
+              maxtime=5.,
               blanktime=.8,
               fixtime=.8,
               feedbacktime=2,
@@ -205,7 +200,8 @@ def start_exp(nblocks=6,
     -------
     None
     """
-    # Maximum Duration with timeout of 5s and 6 blocks = 32 min (64*6*5/60)
+    # Maximum Duration with timeout of 5s and 6 blocks ~ 42 min (including blanks and fix)
+    # with 8 blocks, it would be maximum of 56 minutes
 
     # get experiment info (draw gui or dummy values for testing)
     if skipgui:
@@ -231,14 +227,16 @@ def start_exp(nblocks=6,
         wind = visual.Window(color='black', colorSpace='rgb', units='deg', fullscr=True)
     mouse = event.Mouse(win=wind)
 
-    # x and y screen resolution (pixels), needed for mouse reset via xdotool in soundprooflab
-    xres, yres = mon.getSizePix()
+    # avoid ubuntu overview feature
+    if monitorname == 'soundproof_lab':
+        avoidcorner_xdotool(mon)
 
     # get stimuli and generate list of block sequences
     stimuli = get_behav_stims(exp_info_behav)
 
     # stimuli
-    fix = visual.ShapeStim(wind, size=1, lineWidth=5, closeShape=False, lineColor="white", name='fixation',
+    fix = visual.ShapeStim(wind, size=.8, lineWidth=3, closeShape=False, lineColor="white", name='fixation',
+                           units="deg",
                            vertices=((0, -0.5), (0, 0.5), (0, 0), (-0.5, 0), (0.5, 0)))
     blank_ = visual.ShapeStim(wind, size=0, lineWidth=0, lineColor='black', name='blank')
     img_stim = visual.ImageStim(wind, size=img_size, pos=img_pos, name='image_stim', units='deg')
@@ -246,7 +244,7 @@ def start_exp(nblocks=6,
     target_label = visual.TextStim(wind, height=label_size, units='deg', color='gray')
 
     # list of distractor boxes and one target box (boxes are invisible but clickable)
-    box_kwargs = {'lineWidth': 3, 'width': 11, 'height': label_size + 1.2,
+    box_kwargs = {'lineWidth': 3, 'width': 8, 'height': label_size + .8,
                   'opacity': 1, 'depth': -1.0, 'interpolate': True, 'lineColor': 'gray'}
     distboxes = [visual.Rect(win=wind, name='distbox_%i' % idx, **box_kwargs) for idx in range(1, 6)]
     targetbox = visual.Rect(win=wind, name='targetbox', **box_kwargs)
@@ -254,19 +252,34 @@ def start_exp(nblocks=6,
         targetbox.setLineColor('green')
 
     # instruction text
-    instr1 = "Vielen Dank, dass Sie an unserem Experiment teilnehmen.\n\n\n" \
-             "In dieser Studie moechten wir untersuchen, wie das menschliche Gehirn Objekte unter " \
-             "erschwerten Bedingungen erkennen kann.\n\n" \
-             "Dazu sehen Sie im Folgenden verschwommene Bilder von alltaeglichen Objekten " \
-             "aus unterschiedlichen Blickwinkeln. " \
-             "Zu jedem Bild werden Ihnen ausserdem sechs moegliche Objektnamen angezeigt.\n\n" \
-             "Ihre Aufgabe besteht nun darin, mit der Maus auf den Namen des angezeigten Objekts zu klicken. " \
-             "Bitte versuchen Sie hierbei so schnell und korrekt wie moeglich zu antworten.\n\n\n" \
-             "<Weiter mit der Leertaste>"
-    instr2 = "Nach jedem Durchgang bekommen Sie Feedback ueber die korrekte Antwort. Dazu leuchtet die korrekte " \
-             "Antwortalternative gruen auf.\n\n" \
-             "Falls Sie noch Fragen haben, wenden Sie sich bitte jetzt an die Versuchsleitung\n\n\n" \
-             "<Weiter mit der Leertaste>"
+    instr1 = """
+    Vielen Dank, dass Sie an unserem Experiment teilnehmen.
+    
+    In dieser Studie moechten wir untersuchen, wie das menschliche Gehirn Objekte
+    unter erschwerten Bedingungen erkennen kann.
+    
+    Dazu sehen Sie im Folgenden Bilder von alltaeglichen Objekten aus unterschiedlichen
+    Blickwinkeln. Diese Bilder wurden so veraendert, dass sie dem Seheindruck eines
+    Menschen mit Retinaimplantat moeglichst  genau entsprechen.
+    
+     Zu jedem Bild werden Ihnen ausserdem sechs moegliche Objektnamen angezeigt.
+     Ihre Aufgabe besteht nun darin, mit der Maus auf den Namen des angezeigten
+     Objekts zu klicken. Bitte versuchen Sie hierbei so schnell und korrekt wie moeglich
+     zu antworten.
+     
+     <Weiter mit der Leertaste>
+    """
+
+    instr2 = """
+    In jedem Durchgang haben Sie %s Sekunden Zeit, eine Antwort zu geben. Falls Sie in
+    diesem Zeitfenster nicht reagieren, beginnt der naechste Durchgang.
+    Ausserdem ehalten Sie nach jedem Durchgang Feedback ueber die korrekte Antwort.
+    Dazu leuchtet die korrekte Antwortalternative gruen auf.
+    
+    Falls Sie noch Fragen haben, wenden Sie sich bitte jetzt an die Versuchsleitung
+    
+    <Weiter mit der Leertaste>
+     """ % str(int(maxtime))
 
     # show welcoming instructions
     for instruction in [instr1, instr2]:
@@ -314,7 +327,7 @@ def start_exp(nblocks=6,
             if not showtarget:
                 targetbox.setLineColor('gray')
             if monitorname == 'soundproof_lab':
-                movemouse_xdotool(float(xres)/2, (float(yres)/2) + 200)  # unit: pixels
+                movemouse_xdotool(mon)
             else:
                 mouse.setPos((0, img_pos[1] - (img_size / 2) - 2))  # unit: degree vis angle
 
@@ -405,7 +418,7 @@ def start_exp(nblocks=6,
     # list_of_dictlists_2csv(blocks, output_csv)
 
     # final instruction screen
-    show_instr(wind, "Vielen Dank! Das Experiment ist beendet. "
+    show_instr(wind, "Vielen Dank! Das Experiment ist beendet.\n\n"
                      "Sie koennen sich jetzt an die Versuchsleitung wenden.")
 
     wind.close()
@@ -414,6 +427,4 @@ def start_exp(nblocks=6,
 
 
 if __name__ == '__main__':
-    start_exp(skipgui=False,
-              showtarget=False,
-              monitorname='soundproof_lab')
+    start_exp(monitorname='soundproof_lab')
