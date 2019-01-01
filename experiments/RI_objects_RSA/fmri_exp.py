@@ -171,9 +171,9 @@ def sample_itis_shiftruncexpon(miniti=800.,
 
 
 def add_itis(stim_sequence,
-             min_iti=.8,
-             max_iti=1.5,
-             av_iti=1.,
+             min_iti,
+             max_iti,
+             av_iti,
              jitter='shiftruncexpon'):
     """
     Add jittered inter trial intervals to a stimulus sequence.
@@ -188,7 +188,12 @@ def add_itis(stim_sequence,
 
 def make_run_seq(stimdicts,
                  experiment_info,
-                 blocksperrun=4):  # maybe add args for jitter timing
+                 blocksperrun=4,
+                 with_catches=True,  # if False, don't add catch trials
+                 ncatches=10,  # number of catch trials
+                 miniti=.8,  # jitter args
+                 maxiti=1.5,
+                 aviti=1.):
     """
     Take stimulus dicts and create a list of lists, with each sublist representing the stimulus sequence of one block
     and the number of sublists corresponding to the number of blocks/repetitions in one functional run.
@@ -215,8 +220,10 @@ def make_run_seq(stimdicts,
         block_sequence = copy.deepcopy(stimdicts)
         block_sequence = add_expinfo(block_sequence, experiment_info)
         block_sequence = add_empty_responses(block_sequence)
-        block_sequence = add_catches(block_sequence)
-        block_sequence = add_itis(block_sequence, jitter='shiftruncexpon')
+        if with_catches:
+            block_sequence = add_catches(block_sequence,  num_catches=ncatches)
+        block_sequence = add_itis(block_sequence, jitter='shiftruncexpon',
+                                  min_iti=miniti, max_iti=maxiti, av_iti=aviti)
         for trial in block_sequence:
             trial['block'] = block
         run_sequences.append(block_sequence)
@@ -391,5 +398,4 @@ def run_first_session(stimbasedir,
 if __name__ == '__main__':
     stimdir = '/Users/Oliver/ri_hmax/experiments/RI_objects_RSA/Stimuli/'
     outdir = os.path.dirname(os.path.realpath(__file__))
-
-    run_first_session(stimbasedir=stimdir, outcsvdir=outdir, mon_name='samsung_office', testing=True)  # , testing=True)
+    run_first_session(stimbasedir=stimdir, outcsvdir=outdir, mon_name='samsung_office', testing=True)
