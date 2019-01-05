@@ -159,6 +159,15 @@ def select_train(percept_dicts):
     return selected
 
 
+def mock_exp_info():
+    """
+    Create a dictionary containing dummy information for testing.
+    """
+    exp_info = OrderedDict({'Alter': ' 1', 'Geschlecht': 'weiblich', 'Rechtshaendig': True, 'Sitzung': '1',
+                            'SubjectID': '1', 'date': u'2018_Nov_06_1408', 'exp_name': 'RI_RSA'})
+    return exp_info
+
+
 def add_expinfo(stimsequence, exp_info):
     """
     Add key-value pairs in exp_info to list of stimdicts defined in stim_sequence so it will be
@@ -241,8 +250,8 @@ def movemouse_xdotool(psychopy_mon,
     """
     xres, yres = psychopy_mon.getSizePix()
     subprocess.Popen(["xdotool", "mousemove",
-                      str((float(xres)/2) + xoffset),
-                      str((float(yres)/2) + yoffset)])
+                      str((float(xres) / 2) + xoffset),
+                      str((float(yres) / 2) + yoffset)])
     return None
 
 
@@ -256,8 +265,8 @@ def avoidcorner_xdotool(psychopy_mon,
     """
     xres, yres = psychopy_mon.getSizePix()
     subprocess.Popen(['xdotool', 'behave_screen_edge', '--quiesce', str(quiesce), 'top-left', 'mousemove',
-                      str((float(xres)/2) + xoffset),
-                      str((float(yres)/2) + yoffset)])
+                      str((float(xres) / 2) + xoffset),
+                      str((float(yres) / 2) + yoffset)])
     return None
 
 
