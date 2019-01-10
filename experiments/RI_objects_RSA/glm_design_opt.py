@@ -18,7 +18,7 @@ from os.path import join as pjoin
 import numpy as np
 from mvpa2.misc.data_generators import simple_hrf_dataset
 
-from fmri_exp_functions import make_rsa_run_sequence, add_catches
+from fmri_exp_functions import make_rsa_run_sequence, add_catches, add_itis
 
 
 def mock_exp_info():
@@ -123,8 +123,8 @@ def simulate_glm_run(percept_dicts, intact_dicts, exp_info,
                      assign_training=True,
                      remove_irrelevant_keys=(
                              'Alter', 'Geschlecht', 'RT', 'Rechtshaendig', 'Sitzung', 'SubjectID', 'accuracy', 'date',
-                             'global_onset_time', 'keys', 'rotation', 'ran', 'object_id', 'object_name', 'trial_num',
-                             'file_path', 'exp_name'
+                             'global_onset_time', 'responses', 'rotation', 'ran', 'object_id', 'object_name',
+                             'trial_num', 'file_path', 'exp_name', 'firsttrig_time'
                      )):
     """
     Create a simulated functional run to be used in the efficiency sampling.
@@ -136,11 +136,11 @@ def simulate_glm_run(percept_dicts, intact_dicts, exp_info,
     """
     # get sequence for intact and ri seperately (without catch trials),
     # by using one of my functions
-    percept_sequence = make_rsa_run_sequence(percept_dicts, exp_info, blocksperrun=reps_per_run, with_catches=False,
-                                             miniti=minjit, maxiti=maxjit, aviti=avjit)
+    percept_sequence = make_rsa_run_sequence(percept_dicts, exp_info, reps_per_run=reps_per_run, with_catches=False,
+                                             with_itis=False, miniti=minjit, maxiti=maxjit, aviti=avjit)
     percept_sequence = percept_sequence[0]
-    intact_sequence = make_rsa_run_sequence(intact_dicts, exp_info, blocksperrun=1, with_catches=False,
-                                            miniti=minjit, maxiti=maxjit, aviti=avjit)
+    intact_sequence = make_rsa_run_sequence(intact_dicts, exp_info, reps_per_run=1, with_catches=False,
+                                            with_itis=False, miniti=minjit, maxiti=maxjit, aviti=avjit)
     intact_sequence = intact_sequence[0]
 
     # assign 'trained' and 'untrained' markers to half of each intact and ri stimuli
@@ -161,6 +161,9 @@ def simulate_glm_run(percept_dicts, intact_dicts, exp_info,
 
     # add catches and shuffle
     full_seq = add_catches(full_seq, num_catches=catches, shuffle_inlist=True)
+
+    # add_itis to whole sequence
+    full_seq = add_itis(full_seq, min_iti=minjit, max_iti=maxjit, av_iti=avjit)
 
     # remove sequence info that has no meaning for the design simulation
     if remove_irrelevant_keys:
@@ -188,11 +191,9 @@ def add_ons_dur_inten(stimsequence,
         else:
             stimsequence[idx]['onset'] = stimsequence[idx - 1]['onset'] + fixdur + stimdur + stimsequence[idx - 1][
                 'iti']
-
-    # durations + intensities
-    for stim in stimsequence:
-        stim['duration'] = stimdur
-        stim['intensity'] = intensity
+        # durations + intensities
+        stimsequence[idx]['duration'] = stimdur
+        stimsequence[idx]['intensity'] = intensity
 
     return stimsequence
 
@@ -308,18 +309,6 @@ def compute_vif(design_matrix):
     return vif
 
 
-def read_designopt_json(results_filepath='results_design_opt.json'):
-    """
-    Read json file that contains the results from the design optimation procedure
-
-    NOTE: the best designs are at the end of the lists
-    """
-    import json
-    with open(results_filepath, 'rb') as f:
-        results = json.load(f)
-    return results
-
-
 def iterate_over_designs(niters=10,
                          maxiti=1.5,
                          miniti=0.8,
@@ -389,5 +378,5 @@ def iterate_over_designs(niters=10,
 
 
 if __name__ == '__main__':
-    sim_results = iterate_over_designs(niters=50000, keepbest=400,
+    sim_results = iterate_over_designs(niters=20, keepbest=5,
                                        stimbasedir='./Stimuli')

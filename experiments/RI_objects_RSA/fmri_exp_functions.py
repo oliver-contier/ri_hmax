@@ -6,14 +6,98 @@ Functions needed for building and handling stimulus sequences in the scanner
 """
 
 import copy
+import glob
+import os
 import random
+from collections import OrderedDict
 from os.path import join as pjoin
 
 import numpy as np
 from numpy.random import exponential
 
-from general import getstims_aloiselection
-from glm_design_opt import read_designopt_json
+
+def id2name_dict():
+    id2name = {
+        '9': 'Schuh',
+        '40': 'Gluehbirne',
+        '89': 'Tube',
+        '90': 'Ente',
+        '125': 'Tasse',
+        '161': 'Kanne',
+        '263': 'Rahmen',
+        '281': 'Knoblauch',
+        '405': 'Locher',
+        '408': 'Wuerfel',
+        '461': 'Toilettenpapier',
+        '466': 'Stift',
+        '615': 'Dose',
+        '642': 'Tacker',
+        '910': 'Spruehflasche',
+        '979': 'Hut'
+    }
+    return id2name
+
+
+def getstims_aloiselection(percepts_dir='./Stimuli/percepts',
+                           preprocessed_dir='./Stimuli/preprocessed',
+                           id2namedict=id2name_dict()):
+    """
+    Create list of dicts containing information about all experimental stimuli, like their
+    vision type ('ri_percept' vs. 'intact'), rotation, object_id and file_path.
+
+    Parameters
+    ----------
+    percepts_dir : str
+        Path to directory with RI percept images (should be .png).
+    preprocessed_dir : str
+        Path to directory with intact object images (which were also preprocessed in my case).
+    id2namedict : dict
+        for assigning object_names based on object_ids (because only object_ids are in the file names).
+
+    Returns
+    -------
+    percept_dicts : list of dicts
+        Each dict stands for one RI percept stimulus, containing key-value pairs for vision, rotation, object_id,
+        object_name, and file path.
+    intact_dicts : list of dicts
+        Same as percept_dicts but for intact object stimuli.
+    """
+    #  check if input directory exists
+    for directory in [percepts_dir, preprocessed_dir]:
+        if not os.path.exists(directory):
+            raise IOError('Could not find stimulus input directory : %s' % directory)
+
+    # get files in directory
+    percept_fpaths = glob.glob(percepts_dir + '/*.png')
+    intact_fpaths = glob.glob(preprocessed_dir + '/*.png')
+
+    # collect info from percept file names
+    percept_dicts = []
+    for percept_fpath in percept_fpaths:
+        # vision1 and vision2 are not actually used for the dict
+        object_id, rotation, vision1, vision2 = tuple(percept_fpath.split('/')[-1].split('.')[0].split('_'))
+        percept_dict = OrderedDict({'file_path': percept_fpath,
+                                    'object_id': object_id,
+                                    'rotation': int(rotation.replace('r', '')),
+                                    'vision': 'ri_percept'})
+        percept_dicts.append(percept_dict)
+
+    # collect info from intact (prepped) object file names
+    intact_dicts = []
+    for intact_fpath in intact_fpaths:
+        object_id, rotation, vision = tuple(intact_fpath.split('/')[-1].split('.')[0].split('_'))
+        intact_dict = OrderedDict({'file_path': intact_fpath,
+                                   'object_id': object_id,
+                                   'rotation': int(rotation.replace('r', '')),
+                                   'vision': 'intact'})
+        intact_dicts.append(intact_dict)
+
+    # add object name
+    for dictlist in [percept_dicts, intact_dicts]:
+        for stimdict in dictlist:
+            stimdict['object_name'] = id2namedict[stimdict['object_id']]
+
+    return percept_dicts, intact_dicts
 
 
 def add_expinfo(stimsequence, exp_info):
@@ -69,7 +153,8 @@ def assertplus2(list1, list2):
 
 
 def add_empty_responses(stimsequence,
-                        add_empty_onset=True,
+                        add_global_onset=True,
+                        add_firsttrig=True,
                         add_trial_num=True):
     """
     Add empty dummy information for the to-be-captured responses to each stimulus dict in sequence. These are:
@@ -80,14 +165,16 @@ def add_empty_responses(stimsequence,
     numbers, these keys may optionally not be added
     """
     for trial_num, stimdict in enumerate(stimsequence):
-        if add_empty_onset:
-            stimdict['global_onset_time'] = None
+        if add_global_onset:
+            stimdict['global_onset_time'] = None  # time relative to first trigger
+        if add_firsttrig:
+            stimdict['firsttrig_time'] = None  # time from start of this script to the first trigger
         stimdict['RT'] = None
         stimdict['accuracy'] = None
-        stimdict['keys'] = None
+        stimdict['responses'] = None  # keys pressed durint a trial
         if add_trial_num:
             stimdict['trial_num'] = trial_num
-        stimdict['ran'] = False
+        stimdict['ran'] = False  # was the trial presented
     return stimsequence
 
 
@@ -102,40 +189,45 @@ def add_catches(stimlist,
 
     # assert that we didn't specify too many catch trials given our constraints
     assertplus2(stimlist, range(num_catches))
-    # make copy of original list
     # shuffle if desired
     if shuffle_inlist:
         random.shuffle(stimlist)
-    # add key-value indicating if this is a catch or normal trial
+    # initial key-value indicating if this is a catch or normal trial
     for stim in stimlist:
         stim['trial_type'] = 'normal'
 
     # make list of random, non-consecutive positions for catch trials
-    # with constraint that first and last trials mustn't be catch trials
+    # with added constraint that first and last trials mustn't be catch trials
     consec_bool, firstlast_bool = True, True
-    catchpositions = None
+    insert_positions = None
     while consec_bool or firstlast_bool:
-        catchpositions = random.sample(range(len(stimlist)), num_catches)
-        consec_bool, firstlast_bool = checkconsec(catchpositions), checkfirstlast(catchpositions, stimlist)
+        insert_positions = np.array(sorted(random.sample(range(len(stimlist)), num_catches)))
+        consec_bool, firstlast_bool = checkconsec(insert_positions), checkfirstlast(insert_positions, stimlist)
 
-    # choose items in new_stimlist (i.e. percept_dict) that should be followed by catch trials
-    catchstims = [stimlist[pos] for pos in catchpositions]
+    # make stimlist an array to get numpy goodness
+    stimlist = np.array(stimlist)
 
-    # insert catchstims into list at appropriate index
-    # and mark them with 'catch'
-    for catchstim in catchstims:
-        stimlist.insert(stimlist.index(catchstim) + 1, catchstim)
-        stimlist[stimlist.index(catchstim) + 1]['trial_type'] = 'catch'
+    # copy to-be-catch stimuli so we don't have pointer problems
+    catchstims = copy.deepcopy(stimlist[insert_positions])
 
-    # make new list with copy of each original dict, else multiple entries will point to same object in memory
-    stimlist_copy = [copy.copy(stimdict) for stimdict in stimlist]
+    # insert their copies at the positions before
+    stimlist_ins = np.insert(stimlist, insert_positions, catchstims)
 
-    # flip trial_type of the stim right before catch trial back to 'normal'
-    for idx, stim in enumerate(stimlist_copy[:-1]):
-        if stimlist_copy[idx + 1]['trial_type'] == 'catch':
-            stim['trial_type'] = 'normal'
+    # mark catch trials trial_type whenever there are two identical consecutive trials
+    assert_counter = 0
+    for idx in range(len(stimlist_ins)):
+        if idx == 0:
+            continue
+        elif stimlist_ins[idx] == stimlist_ins[idx - 1]:
+            stimlist_ins[idx]['trial_type'] = 'catch'
+            assert_counter += 1
+    assert assert_counter == num_catches
 
-    return stimlist_copy
+    # reassign trial number (because else they will still be copies)
+    for idx in range(len(stimlist_ins)):
+        stimlist_ins[idx]['trial_num'] = idx+1
+
+    return stimlist_ins
 
 
 def sample_itis_shiftruncexpon(miniti=800.,
@@ -173,9 +265,10 @@ def add_itis(stim_sequence,
 
 def make_rsa_run_sequence(stimdicts,
                           experiment_info,
-                          blocksperrun=4,
+                          reps_per_run=4,
                           with_catches=True,  # if False, don't add catch trials
                           ncatches=10,  # number of catch trials
+                          with_itis=True,
                           miniti=.8,  # jitter args
                           maxiti=1.5,
                           aviti=1.):
@@ -189,7 +282,7 @@ def make_rsa_run_sequence(stimdicts,
         each list entry represents one stimulus gathered with getstims_aloiselection
     experiment_info : dict
         additional experiment information gathered from the psychopy gui
-    blocksperrun : int
+    reps_per_run : int
         number of blocks in one functional run
 
     Returns
@@ -200,15 +293,16 @@ def make_rsa_run_sequence(stimdicts,
     """
 
     run_sequences = []
-    for block in range(1, blocksperrun + 1):
+    for block in range(1, reps_per_run + 1):
         # for each block, create a seperate copy and add exp_info, empty responses, catches, jitter, and block number
         block_sequence = copy.deepcopy(stimdicts)
         block_sequence = add_expinfo(block_sequence, experiment_info)
         block_sequence = add_empty_responses(block_sequence)
         if with_catches:
             block_sequence = add_catches(block_sequence, num_catches=ncatches)
-        block_sequence = add_itis(block_sequence, jitter='shiftruncexpon',
-                                  min_iti=miniti, max_iti=maxiti, av_iti=aviti)
+        if with_itis:
+            block_sequence = add_itis(block_sequence, jitter='shiftruncexpon',
+                                      min_iti=miniti, max_iti=maxiti, av_iti=aviti)
         for trial in block_sequence:
             trial['block'] = block
         run_sequences.append(block_sequence)
@@ -229,12 +323,24 @@ def read_trained_objects(behav_data_dir='./behav_data',
     return trained_obs
 
 
-def make_glm_optimized_runs_for_subject(sub_id,
-                                        nruns=3,
-                                        test=False,
-                                        behav_data_dir='./behav_data',
-                                        stim_dir='./Stimuli',
-                                        designopt_json='results_design_opt.json'):
+def read_designopt_json(results_filepath='results_design_opt.json'):
+    """
+    Read json file that contains the results from the design optimation procedure
+
+    NOTE: the best designs are at the end of the lists
+    """
+    import json
+    with open(results_filepath, 'rb') as f:
+        results = json.load(f)
+    return results
+
+
+def load_glm_run(sub_id,
+                 nruns=3,
+                 test=False,
+                 behav_data_dir='./behav_data',
+                 stim_dir='./Stimuli',
+                 designopt_json='results_design_opt.json'):
     """
     From the efficiency optimized trial sequences, grab as many as we want there to be functional runs
     and bring them in shape for presentation with psychopy.
@@ -345,6 +451,6 @@ def make_glm_optimized_runs_for_subject(sub_id,
             assert idx == len(percept_dicts) / 2
 
         # add responses, block info, etc. to this sequence
-        sequence = add_empty_responses(sequence, add_empty_onset=False, add_trial_num=False)
+        sequence = add_empty_responses(sequence, add_global_onset=True, add_trial_num=False)
 
     return sub_sequences

@@ -159,12 +159,13 @@ def select_train(percept_dicts):
     return selected
 
 
-def mock_exp_info():
+def mock_exp_info(which_session=2):
     """
     Create a dictionary containing dummy information for testing.
     """
-    exp_info = OrderedDict({'Alter': ' 1', 'Geschlecht': 'weiblich', 'Rechtshaendig': True, 'Sitzung': '1',
-                            'SubjectID': '1', 'date': u'2018_Nov_06_1408', 'exp_name': 'RI_RSA'})
+    exp_info = OrderedDict({'Alter': ' 1', 'Geschlecht': 'weiblich', 'Rechtshaendig': True,
+                            'Sitzung': str(which_session), 'SubjectID': '1', 'date': u'2018_Nov_06_1408',
+                            'exp_name': 'RI_RSA'})
     return exp_info
 
 
