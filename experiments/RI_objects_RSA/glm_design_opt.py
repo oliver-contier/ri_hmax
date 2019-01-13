@@ -30,6 +30,9 @@ def mock_exp_info():
     return exp_info
 
 
+# TODO: Refactor my helper functions into psychopy-related and nonrelated. So I can avoid importing psychopy when
+#  running efficiency optimization on the cluster
+
 def id2name_dict():
     id2name = {
         '9': 'Schuh',

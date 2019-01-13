@@ -173,7 +173,7 @@ def add_empty_responses(stimsequence,
         stimdict['accuracy'] = None
         stimdict['responses'] = None  # keys pressed durint a trial
         if add_trial_num:
-            stimdict['trial_num'] = trial_num
+            stimdict['trial_num'] = trial_num + 1
         stimdict['ran'] = False  # was the trial presented
     return stimsequence
 
@@ -451,6 +451,6 @@ def load_glm_run(sub_id,
             assert idx == len(percept_dicts) / 2
 
         # add responses, block info, etc. to this sequence
-        sequence = add_empty_responses(sequence, add_global_onset=True, add_trial_num=False)
+        sequence = add_empty_responses(sequence, add_global_onset=True, add_trial_num=True)
 
     return sub_sequences
