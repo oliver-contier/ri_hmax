@@ -5,44 +5,9 @@ import csv
 import glob
 import os
 import random
-import subprocess
 from collections import OrderedDict
 
 import numpy as np
-from psychopy import gui, core, data, monitors, visual, event
-
-
-def draw_gui(exp_name='RI_RSA',
-             fields=(('SubjectID', ''), ('Gechlecht', ('maennlich', 'weiblich')),
-                     ('Alter', ' '), ('Rechtshaendig', True), ('Sitzung', (1, 2)))):
-    """
-    Get session info from subject via a GUI.
-
-    Parameters
-    ----------
-    exp_name : str
-        Name of the experiment, will be stored in exp_info
-    fields : tuple
-        Questions presented in the gui. Tuple pairs correspond to key/value scheme of psychopy's gui dict.
-
-    Returns
-    -------
-    exp_info : dict
-        containing subject ID, gender, age, etc.
-    """
-    # initiate dict with information collected from GUI input
-    exp_info = dict(fields)
-    # draw gui
-    dlg = gui.DlgFromDict(dictionary=exp_info, title=exp_name)
-    # quit gui if user clicks 'cancel'
-    if not dlg.OK:
-        core.quit()
-    # add additional info to exp_info which doesn't come from GUI input
-    exp_info = OrderedDict(exp_info)
-    exp_info['exp_name'] = exp_name
-    exp_info['date'] = data.getDateStr()
-
-    return exp_info
 
 
 def id2name_dict():
@@ -198,7 +163,7 @@ def dictlist2csv(dictlist, csv_fname):
     return None
 
 
-def list_of_dictlists_2csv(dictlistslist, csv_fname):
+def nested_dictlist_2csv(dictlistslist, csv_fname):
     """
     take a list of lists, each containing dicts with equivalent keys and write their contents into a csv file.
     """
@@ -211,74 +176,43 @@ def list_of_dictlists_2csv(dictlistslist, csv_fname):
     return None
 
 
-def pick_monitor(mon_name='samsung_office'):
+def checkconsec(integerlist):
     """
-    Create a psychopy monitor and window instance depending on where you want to display the experiment.
+    Helper function.
+    Check whether a list of integers contains consecutive numbers. Returns True or False.
     """
-    allowed = ['samsung_office', 'samsung_behavlab', 'soundproof_lab']
-    if mon_name not in allowed:
-        raise IOError('Could not find settings for mon : %s' % mon_name)
-    mon, win = None, None
-    if mon_name == 'samsung_office':
-        res = (1920, 1080)
-        mon = monitors.Monitor(mon_name, width=60., distance=60.)
-        mon.setSizePix(res)
-        win = visual.Window(monitor=mon, size=res, color='black', units='deg', screen=0, fullscr=True)
-    elif mon_name == 'samsung_behavlab':
-        res = (1920, 1080)
-        mon = monitors.Monitor(mon_name, width=52.2, distance=60.)
-        mon.setSizePix(res)
-        win = visual.Window(monitor=mon, size=res, color='black', units='deg', screen=0, fullscr=True)
-    elif mon_name == 'soundproof_lab':
-        res = (1920, 1080)
-        mon = monitors.Monitor(mon_name, width=53., distance=80.)  # cheat distance: 60, actual distance: 81.3
-        mon.setSizePix(res)
-        win = visual.Window(monitor=mon, size=res, color='black', units='deg', screen=0, fullscr=True)
-    # mon.save()
-    # TODO: 'skyra_projector'
-    return mon, win
+    # make an ordered copy of original input list
+    ordered = [i for i in integerlist]
+    ordered.sort()
+    # check for consecutive list elements
+    consec = False
+    for element in ordered[1:]:
+        if element == ordered[ordered.index(element) - 1] + 1:
+            consec = True
+    return consec
 
 
-def movemouse_xdotool(psychopy_mon,
-                      xoffset=0,
-                      yoffset=230):
+def checkfirstlast(indiceslist,
+                   targetlist):
     """
-    Execute shell command (xdotool) to reset mouse position when psychopy's pyglet module throws an error (as is
-    the case in our soundproof_lab).
-
-    Note that x and y coordinates start at zero in the upper left corner,
-    so xoffset moves to the right, and yoffset moves down.
+    Check if list of indices contains index for first or last element of a target list
+    (i.e. 0 or len(elementlist)-1 )
     """
-    xres, yres = psychopy_mon.getSizePix()
-    subprocess.Popen(["xdotool", "mousemove",
-                      str((float(xres) / 2) + xoffset),
-                      str((float(yres) / 2) + yoffset)])
-    return None
+    # check constraint
+    firstlast = False
+    lastidx = len(targetlist) - 1
+    if 0 in indiceslist or lastidx in indiceslist:
+        firstlast = True
+    return firstlast
 
 
-def avoidcorner_xdotool(psychopy_mon,
-                        xoffset=0,
-                        yoffset=200,
-                        quiesce=100):
+def assertplus2(list1, list2):
     """
-    Avoid annoying gnome feature (hot corners) that shows a workspace overview when the mouse hits the upper-left corner
-    by simply re-positioning the mouse to a neutral position whenever this happens.
+    Assert if list1 has at least two more elements than list2
     """
-    xres, yres = psychopy_mon.getSizePix()
-    subprocess.Popen(['xdotool', 'behave_screen_edge', '--quiesce', str(quiesce), 'top-left', 'mousemove',
-                      str((float(xres) / 2) + xoffset),
-                      str((float(yres) / 2) + yoffset)])
-    return None
-
-
-def show_instr(window_instance,
-               message="Lorem ipsum dolor sit amet.",
-               textsize=.8,
-               unit='deg',
-               continue_key='space'):
-    textstim = visual.TextStim(window_instance, height=textsize, units=unit, wrapWidth=40)
-    textstim.setText(message)
-    textstim.draw()
-    window_instance.flip()
-    event.waitKeys(keyList=[continue_key])
+    if len(list1) < len(list2) + 2:
+        raise IOError('Too many catch trials for stimulus sequence, given constraint checkfirstlast.\n'
+                      'length of stimulus list : %s\n'
+                      'number of desired catch trials : %s'
+                      % (str(len(list1)), str(len(list2))))
     return None

@@ -6,7 +6,8 @@ from os.path import join as pjoin
 from psychopy import event, visual, core
 
 from fmri_exp_functions import make_rsa_run_sequence, load_glm_run
-from general import pick_monitor, getstims_aloiselection, mock_exp_info, draw_gui, list_of_dictlists_2csv, dictlist2csv
+from misc import getstims_aloiselection, mock_exp_info, nested_dictlist_2csv, dictlist2csv
+from psychopy_helper import pick_monitor, draw_gui
 
 
 def present_run(run_sequence,
@@ -17,7 +18,7 @@ def present_run(run_sequence,
                 trigger_key='t',
                 stimsize=13,  # 15,  # behav experiment uses 13 degree vis angle
                 fixdur=.2,  # .500,
-                stimdur=.8,  # 1.,
+                stimdur=1.,  # .8,
                 skip_volumes=5,
                 monitorname='skyra_projector',
                 shift_responselog_back=1):
@@ -149,17 +150,17 @@ def present_run(run_sequence,
                 trial_['first_trigger'] = firsttrig[0][1]
                 trial_['last_dummy_trigger'] = dummy_keys[0][1]
         # write csv file
-        list_of_dictlists_2csv(run_sequence, csv_fname=output_csv)
+        nested_dictlist_2csv(run_sequence, csv_fname=output_csv)
     # no nested loop necessary for runs wich present both stim types
     if runtype == 'ri_and_intact':
         # present trials
         escape_bool = _present_trials(run_sequence)
-        # write output csv
-        dictlist2csv(run_sequence, output_csv)
         # add additional global info to trial dicts
         for trial_ in run_sequence:
             trial_['first_trigger'] = firsttrig[0][1]
             trial_['last_dummy_trigger'] = dummy_keys[0][1]
+        # write output csv
+        dictlist2csv(run_sequence, output_csv)
 
     # end presentation
     window_.close()
@@ -172,7 +173,12 @@ def start_fmri_experiment(stimbasedir,
                           outcsvdir,
                           n_rsa_runs=4,
                           reps_per_rsa_run=2,
+                          n_glm_runs=3,
+                          stim_dur=1.,
+                          fix_dur=.2,
                           test=False,
+                          responsekey='1',
+                          triggerkey='t',
                           mon_name='skyra_projector'):
     """
     """
@@ -199,27 +205,29 @@ def start_fmri_experiment(stimbasedir,
     assert session_int in [1, 2]
 
     # present runs which only contain ri percepts (used in both sessions)
-    for run in range(1, n_rsa_runs + 1):
-        run_seq = make_rsa_run_sequence(percept_dicts, exp_info, reps_per_run=reps_per_rsa_run)
-        run_seq = run_seq
-        csv_fname = pjoin(outcsvdir, 'sub%s_session%s_rionly_run%i_fmri.csv'
-                          % (exp_info['SubjectID'], exp_info['Sitzung'], run))
-        # present one functional run
-        present_run(run_seq, output_csv=csv_fname, monitorname=mon_name, runtype='ri_only')
+    # for run in range(1, n_rsa_runs + 1):
+    #     run_seq = make_rsa_run_sequence(percept_dicts, exp_info, reps_per_run=reps_per_rsa_run)
+    #     run_seq = run_seq
+    #     csv_fname = pjoin(outcsvdir, 'sub%s_session%s_rionly_run%i_fmri.csv'
+    #                       % (exp_info['SubjectID'], exp_info['Sitzung'], run))
+    #     # present one functional run
+    #     present_run(run_seq, output_csv=csv_fname, monitorname=mon_name, runtype='ri_only',
+    #                 response_key=responsekey, trigger_key=triggerkey, stimdur=stim_dur, fixdur=fix_dur)
 
     # if this is session 2, present the runs with all stimuli (intact and ri percept)
     # which are loaded from efficiency optimization results.
     if session_int == 2:
         # load the sequence for this subject
-        glm_runs = load_glm_run(sub_id=exp_info['SubjectID'])
+        glm_runs = load_glm_run(sub_id=exp_info['SubjectID'], nruns=n_glm_runs)
         for run in glm_runs:
             csv_fname = pjoin(outcsvdir, 'sub%s_session%s_allstim_run%i_fmri.csv'
                               % (exp_info['SubjectID'], exp_info['Sitzung'], glm_runs.index(run) + 1))
-            present_run(run, output_csv=csv_fname, monitorname=mon_name, runtype='ri_and_intact')
+            present_run(run, output_csv=csv_fname, monitorname=mon_name, runtype='ri_and_intact',
+                        response_key=responsekey, trigger_key=triggerkey, stimdur=stim_dur, fixdur=fix_dur)
 
     return None
 
 
 if __name__ == '__main__':
-    outdir = os.path.dirname(os.path.realpath(__file__))
-    start_fmri_experiment(stimbasedir='./Stimuli', outcsvdir='./fmri_logs', mon_name='samsung_office', test=True)
+    start_fmri_experiment(reps_per_rsa_run=1, n_rsa_runs=4, n_glm_runs=3, stim_dur=1.1,
+                          stimbasedir='./Stimuli', outcsvdir='./fmri_logs', mon_name='samsung_office', test=True)

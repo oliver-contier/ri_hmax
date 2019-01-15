@@ -9,112 +9,14 @@ Execute this script to run an iteration through a ton of designs and keep the on
 The results will be stored in a json file
 """
 
-import glob
 import json
-import os
-from collections import OrderedDict
 from os.path import join as pjoin
 
 import numpy as np
 from mvpa2.misc.data_generators import simple_hrf_dataset
 
 from fmri_exp_functions import make_rsa_run_sequence, add_catches, add_itis
-
-
-def mock_exp_info():
-    """
-    Create a dictionary containing dummy information for testing.
-    """
-    exp_info = OrderedDict({'Alter': ' 1', 'Geschlecht': 'weiblich', 'Rechtshaendig': True, 'Sitzung': '1',
-                            'SubjectID': '1', 'date': u'2018_Nov_06_1408', 'exp_name': 'RI_RSA'})
-    return exp_info
-
-
-# TODO: Refactor my helper functions into psychopy-related and nonrelated. So I can avoid importing psychopy when
-#  running efficiency optimization on the cluster
-
-def id2name_dict():
-    id2name = {
-        '9': 'Schuh',
-        '40': 'Gluehbirne',
-        '89': 'Tube',
-        '90': 'Ente',
-        '125': 'Tasse',
-        '161': 'Kanne',
-        '263': 'Rahmen',
-        '281': 'Knoblauch',
-        '405': 'Locher',
-        '408': 'Wuerfel',
-        '461': 'Toilettenpapier',
-        '466': 'Stift',
-        '615': 'Dose',
-        '642': 'Tacker',
-        '910': 'Spruehflasche',
-        '979': 'Hut'
-    }
-    return id2name
-
-
-def getstims_aloiselection(percepts_dir='./Stimuli/percepts',
-                           preprocessed_dir='./Stimuli/preprocessed',
-                           id2namedict=id2name_dict()):
-    """
-    Create list of dicts containing information about all experimental stimuli, like their
-    vision type ('ri_percept' vs. 'intact'), rotation, object_id and file_path.
-
-    Parameters
-    ----------
-    percepts_dir : str
-        Path to directory with RI percept images (should be .png).
-    preprocessed_dir : str
-        Path to directory with intact object images (which were also preprocessed in my case).
-    id2namedict : dict
-        for assigning object_names based on object_ids (because only object_ids are in the file names).
-
-    Returns
-    -------
-    percept_dicts : list of dicts
-        Each dict stands for one RI percept stimulus, containing key-value pairs for vision, rotation, object_id,
-        object_name, and file path.
-    intact_dicts : list of dicts
-        Same as percept_dicts but for intact object stimuli.
-    """
-    #  check if input directory exists
-    for directory in [percepts_dir, preprocessed_dir]:
-        if not os.path.exists(directory):
-            raise IOError('Could not find stimulus input directory : %s' % directory)
-
-    # get files in directory
-    percept_fpaths = glob.glob(percepts_dir + '/*.png')
-    intact_fpaths = glob.glob(preprocessed_dir + '/*.png')
-
-    # collect info from percept file names
-    percept_dicts = []
-    for percept_fpath in percept_fpaths:
-        # vision1 and vision2 are not actually used for the dict
-        object_id, rotation, vision1, vision2 = tuple(percept_fpath.split('/')[-1].split('.')[0].split('_'))
-        percept_dict = OrderedDict({'file_path': percept_fpath,
-                                    'object_id': object_id,
-                                    'rotation': int(rotation.replace('r', '')),
-                                    'vision': 'ri_percept'})
-        percept_dicts.append(percept_dict)
-
-    # collect info from intact (prepped) object file names
-    intact_dicts = []
-    for intact_fpath in intact_fpaths:
-        object_id, rotation, vision = tuple(intact_fpath.split('/')[-1].split('.')[0].split('_'))
-        intact_dict = OrderedDict({'file_path': intact_fpath,
-                                   'object_id': object_id,
-                                   'rotation': int(rotation.replace('r', '')),
-                                   'vision': 'intact'})
-        intact_dicts.append(intact_dict)
-
-    # add object name
-    for dictlist in [percept_dicts, intact_dicts]:
-        for stimdict in dictlist:
-            stimdict['object_name'] = id2namedict[stimdict['object_id']]
-
-    return percept_dicts, intact_dicts
+from misc import getstims_aloiselection, mock_exp_info
 
 
 def simulate_glm_run(percept_dicts, intact_dicts, exp_info,
@@ -127,8 +29,8 @@ def simulate_glm_run(percept_dicts, intact_dicts, exp_info,
                      remove_irrelevant_keys=(
                              'Alter', 'Geschlecht', 'RT', 'Rechtshaendig', 'Sitzung', 'SubjectID', 'accuracy', 'date',
                              'global_onset_time', 'responses', 'rotation', 'ran', 'object_id', 'object_name',
-                             'trial_num', 'file_path', 'exp_name', 'firsttrig_time'
-                     )):
+                             'trial_num', 'file_path', 'exp_name', 'first_trigger')#, 'last_dummy_trigger')
+                     ):
     """
     Create a simulated functional run to be used in the efficiency sampling.
 
@@ -313,6 +215,7 @@ def compute_vif(design_matrix):
 
 
 def iterate_over_designs(niters=10,
+                         stim_dur=.8,
                          maxiti=1.5,
                          miniti=0.8,
                          aviti=1.0,
@@ -342,7 +245,7 @@ def iterate_over_designs(niters=10,
         # simulate a fake run
         stim_seq = simulate_glm_run(percept_dicts, intact_dicts, exp_info,
                                     maxjit=maxiti, minjit=miniti, avjit=aviti)
-        stim_seq = add_ons_dur_inten(stim_seq)
+        stim_seq = add_ons_dur_inten(stim_seq, stimdur=stim_dur)
         # extract onsets and make design matrix
         onsetdicts = extract_onsets(stim_seq)
         designmatrix = construct_design_matrix(onsetdicts)
@@ -381,5 +284,4 @@ def iterate_over_designs(niters=10,
 
 
 if __name__ == '__main__':
-    sim_results = iterate_over_designs(niters=20, keepbest=5,
-                                       stimbasedir='./Stimuli')
+    sim_results = iterate_over_designs(niters=20, keepbest=5, stim_dur=1.1, stimbasedir='./Stimuli')

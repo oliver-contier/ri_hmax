@@ -17,7 +17,7 @@ from os.path import join as pjoin
 import numpy as np
 from psychopy import visual, event, core
 
-from general import getstims_aloiselection, add_trainingtest, select_train, draw_gui, add_expinfo, \
+from misc import getstims_aloiselection, add_trainingtest, select_train, draw_gui, add_expinfo, \
     pick_monitor, show_instr, movemouse_xdotool, avoidcorner_xdotool
 
 
@@ -415,7 +415,7 @@ def start_exp(nblocks=6,
             dict_writer.writerow(trial)
 
     # # logg all data after loops have finished
-    # list_of_dictlists_2csv(blocks, output_csv)
+    # nested_dictlist_2csv(blocks, output_csv)
 
     # final instruction screen
     show_instr(wind, "Vielen Dank! Das Experiment ist beendet.\n\n"
