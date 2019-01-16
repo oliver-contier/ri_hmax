@@ -1,0 +1,10 @@
+Universe    = vanilla
+getenv      = True
+
+Executable  = glm_design_opt.sh
+
+Log         = glm_design_opt.log
+Output      = glm_design_opt.out
+Error       = glm_design_opt.error
+
+Queue

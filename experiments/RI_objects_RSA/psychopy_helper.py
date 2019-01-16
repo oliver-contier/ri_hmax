@@ -43,36 +43,40 @@ def draw_gui(exp_name='RI_RSA',
     return exp_info
 
 
-def pick_monitor(mon_name='samsung_office'):
+def pick_monitor(mon_name='samsung_office',
+                 bgcolor='black',
+                 screen_index=0,
+                 fullscreen=True):
     """
     Create a psychopy monitor and window instance depending on where you want to display the experiment.
     """
-    allowed = ['samsung_office', 'samsung_behavlab', 'soundproof_lab']
+    allowed = ('samsung_office', 'samsung_behavlab', 'soundproof_lab', 'skyra_projector')
     if mon_name not in allowed:
         raise IOError('Could not find settings for mon : %s' % mon_name)
-    mon, win = None, None
     if mon_name == 'samsung_office':
         res = (1920, 1080)
-        mon = monitors.Monitor(mon_name, width=60., distance=60.)
-        mon.setSizePix(res)
-        win = visual.Window(monitor=mon, size=res, color='black', units='deg', screen=0, fullscr=True)
+        wid = 60.
+        dist = 60.
     elif mon_name == 'samsung_behavlab':
         res = (1920, 1080)
-        mon = monitors.Monitor(mon_name, width=52.2, distance=60.)
-        mon.setSizePix(res)
-        win = visual.Window(monitor=mon, size=res, color='black', units='deg', screen=0, fullscr=True)
+        wid = 52.2
+        dist = 60.
     elif mon_name == 'soundproof_lab':
         res = (1920, 1080)
-        mon = monitors.Monitor(mon_name, width=53., distance=80.)
-        mon.setSizePix(res)
-        win = visual.Window(monitor=mon, size=res, color='black', units='deg', screen=0, fullscr=True)
-    # mon.save()
-    # TODO: 'skyra_projector'
+        wid = 53.
+        dist = 80.
     elif mon_name == 'skyra_projector':
+        # experimenter machine monitor has 24", so width 53 cm and same resolution
         res = (1920, 1080)
-        mon = monitors.Monitor(mon_name, width=53., distance=80.)  # TODO: ask reshanne about distance
-        mon.setSizePix(res)
-        win = visual.Window(monitor=mon, size=res, color='black', units='deg', screen=0, fullscr=True)
+        wid = 26.5
+        dist = 50.  # Reshanne claims, it's 100 cm ...
+    else:
+        raise IOError('could not find monitor with name %s' % mon_name)
+    mon = monitors.Monitor(mon_name, width=wid, distance=dist)
+    mon.setSizePix(res)
+    # mon.save()
+    win = visual.Window(monitor=mon, size=res, color=bgcolor, units='deg', screen=screen_index, fullscr=fullscreen)
+
     return mon, win
 
 
@@ -105,20 +109,4 @@ def avoidcorner_xdotool(psychopy_mon,
     subprocess.Popen(['xdotool', 'behave_screen_edge', '--quiesce', str(quiesce), 'top-left', 'mousemove',
                       str((float(xres) / 2) + xoffset),
                       str((float(yres) / 2) + yoffset)])
-    return None
-
-
-def show_instr(window_instance,
-               message="Lorem ipsum dolor sit amet.",
-               textsize=.8,
-               unit='deg',
-               continue_key='space'):
-    """
-    Show instructions until continue_key is pressed.
-    """
-    textstim = visual.TextStim(window_instance, height=textsize, units=unit, wrapWidth=40)
-    textstim.setText(message)
-    textstim.draw()
-    window_instance.flip()
-    event.waitKeys(keyList=[continue_key])
     return None

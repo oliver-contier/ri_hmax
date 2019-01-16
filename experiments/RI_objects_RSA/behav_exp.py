@@ -17,8 +17,8 @@ from os.path import join as pjoin
 import numpy as np
 from psychopy import visual, event, core
 
-from misc import getstims_aloiselection, add_trainingtest, select_train, draw_gui, add_expinfo, \
-    pick_monitor, show_instr, movemouse_xdotool, avoidcorner_xdotool
+from misc import getstims_aloiselection, add_trainingtest, select_train, add_expinfo
+from psychopy_helper import draw_gui, pick_monitor, show_instr, movemouse_xdotool, avoidcorner_xdotool
 
 
 def make_labelgrid_positions(x_offset=12,
@@ -194,7 +194,7 @@ def start_exp(nblocks=6,
     feedbacktime : float
         duration of feedback screen (i.e. green rectangle around correct category label)
     monitorname : str
-        dummy name of used monitor (atm, only "samsung_office" and "samsung_behavlab" are allowed).
+        name of used monitor.
 
     Returns
     -------

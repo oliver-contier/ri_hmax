@@ -5,35 +5,40 @@ from os.path import join as pjoin
 
 from psychopy import event, visual, core
 
-from fmri_exp_functions import make_rsa_run_sequence, load_glm_run
+from fmri_sequences import make_rsa_run_sequence, load_glm_run
 from misc import getstims_aloiselection, mock_exp_info, nested_dictlist_2csv, dictlist2csv
 from psychopy_helper import pick_monitor, draw_gui
+from instructions import next_block_instr, ending_instr, start_instr, part_two_instr
 
 
 def present_run(run_sequence,
                 output_csv,
+                window_instance,
                 runtype='ri_only',
                 response_key='space',
                 escape_key='escape',
                 trigger_key='t',
                 stimsize=13,  # 15,  # behav experiment uses 13 degree vis angle
-                fixdur=.2,  # .500,
-                stimdur=1.,  # .8,
+                fixdur=.2,
+                stimdur=1.1,
                 skip_volumes=5,
-                monitorname='skyra_projector',
                 shift_responselog_back=1):
     """
     # TODO: docstring
-    # TODO: get monitor specifications from scanner (resolution, width, viewing distance, etc.)
+
+    __run durations__
+
+    # for stimdur=1.1, fixdur=.2, and average iti = 1.:
+    - one all-stimuli run is about 10,4 minutes
+    - one ri-only run is about 5,2 minutes
     """
 
     # Initiate  windows, stimuli, and alike
-    mon, window_ = pick_monitor(monitorname)
-    event.Mouse(visible=False, win=window_)
-    fixation = visual.ShapeStim(window_, size=1, lineWidth=5, closeShape=False, lineColor="white", units='deg',
+    event.Mouse(visible=False, win=window_instance)
+    fixation = visual.ShapeStim(window_instance, size=1, lineWidth=5, closeShape=False, lineColor="white", units='deg',
                                 vertices=((0, -0.5), (0, 0.5), (0, 0), (-0.5, 0), (0.5, 0)))
-    blank = visual.ShapeStim(window_, size=0, lineWidth=0, lineColor='black')
-    stim = visual.ImageStim(window_, size=stimsize, units='deg')
+    blank = visual.ShapeStim(window_instance, size=0, lineWidth=0, lineColor='black')
+    stim = visual.ImageStim(window_instance, size=stimsize, units='deg')
     escape_bool = False
     dummy_keys = None
 
@@ -50,18 +55,18 @@ def present_run(run_sequence,
     """
 
     # Wait for first scanner pulse.
-    firsttrig_instr = visual.TextStim(window_, text='waiting for first scanner pulse',
+    firsttrig_instr = visual.TextStim(window_instance, text='waiting for first scanner pulse',
                                       color='white', height=1, units='deg')
     firsttrig_instr.draw()
-    window_.flip()
+    window_instance.flip()
     firsttrig = event.waitKeys(keyList=[trigger_key], timeStamped=firsttrig_time)  # firsttrig looks like [['t', 1.43]]
     global_onset_time.reset()
 
     # do nothing during first few scans.
-    skipvol_instr = visual.TextStim(window_, text='dummy scans',
+    skipvol_instr = visual.TextStim(window_instance, text='dummy scans',
                                     color='white', height=1, units='deg')
     skipvol_instr.draw()
-    window_.flip()
+    window_instance.flip()
     for i in range(skip_volumes - 1):
         dummy_keys = event.waitKeys(keyList=[trigger_key], timeStamped=skipvol_time)
 
@@ -94,7 +99,7 @@ def present_run(run_sequence,
             fix_rt.reset()
             while fix_rt.getTime() < fixdur:
                 fixation.draw()
-                window_.flip()
+                window_instance.flip()
 
             # show stimulus
             stim.setImage(trial_seq[idx]['file_path'])
@@ -102,13 +107,13 @@ def present_run(run_sequence,
             stim_rt.reset()
             while stim_rt.getTime() < stimdur:
                 stim.draw()
-                window_.flip()
+                window_instance.flip()
 
             # show jittered blank
             blank_rt.reset()
             while blank_rt.getTime() < trial_seq[idx]['iti']:
                 blank.draw()
-                window_.flip()
+                window_instance.flip()
 
             # response evaluation
             if idx_before >= 0:
@@ -162,23 +167,24 @@ def present_run(run_sequence,
         # write output csv
         dictlist2csv(run_sequence, output_csv)
 
-    # end presentation
-    window_.close()
-    core.quit()
-
-    return None
+    return escape_bool
 
 
-def start_fmri_experiment(stimbasedir,
-                          outcsvdir,
+def start_fmri_experiment(stimbasedir='./Stimuli',
+                          outcsvdir='./fmri_logs',
                           n_rsa_runs=4,
-                          reps_per_rsa_run=2,
+                          reps_per_rsa_run=1,
+                          rsa_iti_min=.8,
+                          rsa_iti_max=1.5,
+                          rsa_iti_av=1.,
                           n_glm_runs=3,
-                          stim_dur=1.,
+                          stim_dur=1.1,
                           fix_dur=.2,
                           test=False,
                           responsekey='1',
                           triggerkey='t',
+                          startkey='space',
+                          textsize=1.,
                           mon_name='skyra_projector'):
     """
     """
@@ -192,42 +198,74 @@ def start_fmri_experiment(stimbasedir,
     prep_dir = pjoin(stimbasedir, 'preprocessed')
     percept_dicts, intact_dicts = getstims_aloiselection(percepts_dir=perc_dir, preprocessed_dir=prep_dir)
 
+    mon, win = pick_monitor(mon_name)
+
     # draw gui to get exp_info
     if test:
         exp_info = mock_exp_info(which_session=2)
     else:
         exp_info = draw_gui(exp_name='RI_RSA')
 
-    # TODO: present instruction windows
-
     # get session number from gui input
     session_int = int(exp_info['Sitzung'])
     assert session_int in [1, 2]
 
+    # present very first instruction window
+    start_instr(window_instance=win, text_size=textsize)
+
     # present runs which only contain ri percepts (used in both sessions)
-    # for run in range(1, n_rsa_runs + 1):
-    #     run_seq = make_rsa_run_sequence(percept_dicts, exp_info, reps_per_run=reps_per_rsa_run)
-    #     run_seq = run_seq
-    #     csv_fname = pjoin(outcsvdir, 'sub%s_session%s_rionly_run%i_fmri.csv'
-    #                       % (exp_info['SubjectID'], exp_info['Sitzung'], run))
-    #     # present one functional run
-    #     present_run(run_seq, output_csv=csv_fname, monitorname=mon_name, runtype='ri_only',
-    #                 response_key=responsekey, trigger_key=triggerkey, stimdur=stim_dur, fixdur=fix_dur)
+    for run in range(1, n_rsa_runs + 1):
+        # make a sequence for this subject
+        run_seq = make_rsa_run_sequence(percept_dicts, exp_info, reps_per_run=reps_per_rsa_run,
+                                        miniti=rsa_iti_min, maxiti=rsa_iti_max, aviti=rsa_iti_av)
+        # create csv file name
+        csv_fname = pjoin(outcsvdir, 'sub%s_session%s_rionly_run%i_fmri.csv'
+                          % (exp_info['SubjectID'], exp_info['Sitzung'], run))
+        # show inter-block instructions. Press 'space' before starting the scanner sequence.
+        next_block_instr(run_nr=run, window_instance=win, continuekey=startkey, text_size=textsize)
+        # present one functional run
+        escape_bool = present_run(run_seq, output_csv=csv_fname, window_instance=win,
+                                  runtype='ri_only', response_key=responsekey, trigger_key=triggerkey,
+                                  stimdur=stim_dur, fixdur=fix_dur)
+
+        # quit experiment if escape key was pressed
+        if escape_bool:
+            print('experiment quit via escape key.')
+            ending_instr(window_instance=win, text_size=textsize)
+            win.close()
+            core.quit()
 
     # if this is session 2, present the runs with all stimuli (intact and ri percept)
     # which are loaded from efficiency optimization results.
     if session_int == 2:
         # load the sequence for this subject
         glm_runs = load_glm_run(sub_id=exp_info['SubjectID'], nruns=n_glm_runs)
+        # show short instruction about the second part of the fmri experiment (i.e. intact and ri stimuli)
+        part_two_instr(win, text_size=textsize)
+        # iterate through runs
         for run in glm_runs:
+            # make output csv file name
             csv_fname = pjoin(outcsvdir, 'sub%s_session%s_allstim_run%i_fmri.csv'
                               % (exp_info['SubjectID'], exp_info['Sitzung'], glm_runs.index(run) + 1))
-            present_run(run, output_csv=csv_fname, monitorname=mon_name, runtype='ri_and_intact',
-                        response_key=responsekey, trigger_key=triggerkey, stimdur=stim_dur, fixdur=fix_dur)
+            # show inter-run instructions
+            next_block_instr(run_nr=glm_runs.index(run) + 1, window_instance=win,
+                             continuekey=startkey, text_size=textsize)
+            # present this run
+            escape_bool = present_run(run, output_csv=csv_fname, window_instance=win,
+                                      runtype='ri_and_intact', response_key=responsekey, trigger_key=triggerkey,
+                                      stimdur=stim_dur, fixdur=fix_dur)
+            # break glm-run loop if escape key was pressed
+            if escape_bool:
+                break
+
+    # end of experiment
+    ending_instr(window_instance=win, text_size=textsize)
+    win.close()
+    core.quit()
 
     return None
 
 
 if __name__ == '__main__':
-    start_fmri_experiment(reps_per_rsa_run=1, n_rsa_runs=4, n_glm_runs=3, stim_dur=1.1,
-                          stimbasedir='./Stimuli', outcsvdir='./fmri_logs', mon_name='samsung_office', test=True)
+    start_fmri_experiment(reps_per_rsa_run=1, n_rsa_runs=4, n_glm_runs=3, stim_dur=1.1, mon_name='samsung_office',
+                          test=True)  # TODO: remove test=True when actually running

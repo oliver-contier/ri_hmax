@@ -14,7 +14,6 @@ from numpy.random import exponential
 
 from misc import checkconsec, checkfirstlast, assertplus2, add_expinfo, getstims_aloiselection
 
-
 def add_empty_responses(stimsequence,
                         add_global_onset=True,
                         add_firsttrig=True,
@@ -98,7 +97,7 @@ def sample_itis_shiftruncexpon(miniti=800.,
                                aviti=1000.,
                                ntrials=141):
     """
-    Sample ITIs from truncated exponential distribution which is shifted by a minimum value.
+    Sample ITIs from truncated exponential distribution which is shifted by a minimum value and limited to a maximum.
     """
     distmax = maxiti + 1
     shifted = None
@@ -196,7 +195,6 @@ def read_designopt_json(results_filepath='results_design_opt.json'):
     with open(results_filepath, 'rb') as f:
         results = json.load(f)
     return results
-
 
 def load_glm_run(sub_id,
                  nruns=3,
