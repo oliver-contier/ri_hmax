@@ -6,9 +6,9 @@ from os.path import join as pjoin
 from psychopy import event, visual, core
 
 from fmri_sequences import make_rsa_run_sequence, load_glm_run
+from instructions import next_block_instr, ending_instr, start_instr, part_two_instr
 from misc import getstims_aloiselection, mock_exp_info, nested_dictlist_2csv, dictlist2csv
 from psychopy_helper import pick_monitor, draw_gui
-from instructions import next_block_instr, ending_instr, start_instr, part_two_instr
 
 
 def present_run(run_sequence,
@@ -18,20 +18,60 @@ def present_run(run_sequence,
                 response_key='space',
                 escape_key='escape',
                 trigger_key='t',
-                stimsize=13,  # 15,  # behav experiment uses 13 degree vis angle
+                stimsize=13,
                 fixdur=.2,
                 stimdur=1.1,
                 skip_volumes=5,
                 shift_responselog_back=1):
     """
-    # TODO: docstring
+    Present one functional run.
 
-    __run durations__
+    Parameters
+    ----------
+    run_sequence : list or array
+        The series of trials that are to be presented. run_sequence can be nested (or 2d in case of array) when multiple
+        repetitions (i.e. blocks) are presented in one functional run. In that case, the run_type 'ri_only' has to be
+        selected though.
+    output_csv : str
+        Path and name of the csv output file. The csv file will contain all information that is contained in the trials
+        of run_sequence, including the information that is added during presentation (i.e. global onset time, responses,
+        etc.).
+    window_instance : psychopy.visual.Window
+        Psychopy window where the stimuli are presented on.
+    runtype : str
+        Can be either 'ri_only' or 'ri_and_intact'. Indicates what part of the experiment this run is from.
+        'ri_only' can take nested lists / arrays.
+    response_key : str
+        Name of the key to respond with for the 1-back task. The Skyra response box uses '1'.
+    escape_key : str
+        Name of the key to end the experiment while still running. When escape key is pressed, all data is written to
+        the csv file but the trial presentation is ended.
+    trigger_key : str
+        Name code for the trigger sent by the MRI machine.
+    stimsize : int or float
+        Size of the displayed image in degree visual angle. The actual display size depends also on the resolution,
+        width, and distance of the monitor instance used to create 'window_instance'.
+    fixdur : float
+        Duration the fixation cross is displayed.
+    stimdur : float
+        Duration the stimulus is displayed.
+    skip_volumes : int
+        Number of scanner triggers that are ignored until the stimulus presentation starts (to avoid artifacts due to
+        scanner warm up).
+    shift_responselog_back : int
+        This is a hack to fix the bug where responses were written to the next trial instead of the current one.
 
-    # for stimdur=1.1, fixdur=.2, and average iti = 1.:
-    - one all-stimuli run is about 10,4 minutes
-    - one ri-only run is about 5,2 minutes
+    Returns
+    -------
+    bool
+        Boolian used inside this function to interrupt presentation when escape_key is pressed. By returning it, it
+        can also be used outside this function to end an experiment altogether.
     """
+
+    # __run durations__
+    # # for stimdur=1.1, fixdur=.2, and average iti = 1.:
+    # - one all-stimuli run is about 10,4 minutes
+    # - one ri-only run is about 5,2 minutes
 
     # Initiate  windows, stimuli, and alike
     event.Mouse(visible=False, win=window_instance)

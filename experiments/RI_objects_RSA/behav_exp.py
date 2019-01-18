@@ -17,8 +17,9 @@ from os.path import join as pjoin
 import numpy as np
 from psychopy import visual, event, core
 
-from misc import getstims_aloiselection, add_trainingtest, select_train, add_expinfo
-from psychopy_helper import draw_gui, pick_monitor, show_instr, movemouse_xdotool, avoidcorner_xdotool
+from misc import getstims_aloiselection, add_trainingtest, select_train, add_expinfo, nested_dictlist_2csv, dictlist2csv
+from psychopy_helper import draw_gui, pick_monitor, movemouse_xdotool, avoidcorner_xdotool
+from instructions import show_instr
 
 
 def make_labelgrid_positions(x_offset=12,
@@ -300,6 +301,7 @@ def start_exp(nblocks=6,
 
     # block loop
     escapebool = False
+    blocks = []
     for blocknum in range(1, nblocks + 1):
 
         # make block sequence
@@ -412,10 +414,18 @@ def start_exp(nblocks=6,
             print(trialnum)
 
             # write data of current trial
+            # TODO: I could try having everything in a context handler
             dict_writer.writerow(trial)
 
-    # # logg all data after loops have finished
-    # nested_dictlist_2csv(blocks, output_csv)
+        # write all trials within this block as a failsafe.
+        output_csv_block = pjoin(csv_outdir, 'sub%s_block%s_behav.csv' % (exp_info_behav['SubjectID'], str(blocknum)))
+        dictlist2csv(block, csv_fname=output_csv_block)
+
+        blocks.append(block)
+
+    # logg all data after loops have finished
+    output_csv_allblocks = pjoin(csv_outdir, 'sub%s_allblocks_behav.csv' % (exp_info_behav['SubjectID']))
+    nested_dictlist_2csv(blocks, output_csv_allblocks)
 
     # final instruction screen
     show_instr(wind, "Vielen Dank! Das Experiment ist beendet.\n\n"
