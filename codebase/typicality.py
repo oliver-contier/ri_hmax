@@ -15,6 +15,7 @@ def compute_s(pattern1, pattern2):
     First, distance metric is computed and then transformed to similarity metric.
     """
     distance = (1 - pearsonr(pattern1, pattern2)[0]) / 2
+    # TODO: ValueError: The truth value of an array with more than one element is ambiguous. Use a.any() or a.all()
     similarity = exp(-distance)
     return similarity
 
@@ -37,34 +38,53 @@ def add_typicalities(df, avrg=False):
     df should containing rows for the stimulus name (e.g. "apple_1"), category (e.g. "apple"),
     ri_pattern and intact_pattern (arrays or lists containing hmax cell activations, fMRI data, etc.).
 
-    :param df: Data Frame. pattern df created with hmaxout2df function.
-    :param avrg: bool. If true, take the average instead of summing over all pairwise distances during computation of
+    :param df: Data Frame
+        pattern df created with hmaxout2df function.
+    :param avrg: bool
+        If true, take the average instead of summing over all pairwise distances during computation of
     typicality measures. Use this when the number of stimuli varies between categories.
-    :return: df. Data Frame. pattern df with added newfound, intact, and conserved tyicality.
+
+    :return: df
+        Data Frame. pattern df with added newfound, intact, and conserved tyicality.
     """
 
-    # iterate through exemplars
-    for row in df.exemplar:
-        # get category name and target pattern
-        catname = df[df.exemplar == row].category.values[0]
+    # iterate through categories in this data frame
+    for catname in np.unique(df.category.values):
+        # create new data frame for this category
+        cat_df = df[df.category == catname]
+        # TODO: assert that each exemplar only occurs once for this category
+        # iterate through exemplars of this category
+        for exemplar_ in cat_df.exemplar.values:
+            # find all other exemplars. returns a data frame
+            other_exemplars = cat_df[cat_df.exemplar != exemplar_]
 
-        # get within-category stimuli
-        cat_df = df[(df.category == catname) &
-                    (df.exemplar != row)]
+            # compute within-vision (ri to ri, and intact to intact) similarities
+            for colname, pattern_type in zip(['ri_typicality', 'intact_typicality'],
+                                             ['ri_pattern', 'intact_pattern']):
+                similarities = [
+                    compute_s(
+                        cat_df[cat_df.exemplar == exemplar_][pattern_type].values[0],  # target pattern
+                        other_pattern  # other exemplar's pattern
+                    )
+                    for other_pattern in other_exemplars[pattern_type].values.tolist()
+                ]
 
-        # compute ri typicality and intact typicality
-        for colname, pattern_type in zip(['ri_typ', 'intact_typ'],
-                                         ['ri_pattern', 'intact_pattern']):
-            target_pattern = df[df.exemplar == row][pattern_type]
-            assert len(target_pattern) == len(df.ri_pattern.values[0])  # check whether all pattern lengths are equal
-            similarities = [compute_s(target_pattern, cat_pattern)
-                            for cat_pattern in cat_df[pattern_type].values]
-            df[df.stimulus == row][colname] = compute_typ(similarities, average=avrg)
+                # compute typicality and add to data frame
+                typicality = compute_typ(similarities, average=avrg)
+                df.loc[(df['exemplar'] == exemplar_) & (df['category'] == catname),
+                       colname] = typicality
 
-        # compute conserved typicality
-        target_ri_pattern = df[df.exemplar == row].ri_pattern
-        conserved_similarities = [compute_s(target_ri_pattern, cat_intact_pattern)
-                                  for cat_intact_pattern in cat_df.intact_patterns.values]
-        df[df.stimulus == row]['conserved_typ'] = compute_typ(conserved_similarities, average=avrg)
+            # compute conserved similarities and typicality
+            conserved_similarities = [
+                compute_s(
+                    cat_df[cat_df.exemplar == exemplar_]['ri_pattern'].values[0],
+                    other_pattern
+                )
+                for other_pattern in other_exemplars['intact_pattern'].values.tolist()
+            ]
+            conserved_typicality = compute_typ(conserved_similarities, average=avrg)
+            # append to df
+            df.loc[(df['exemplar'] == exemplar_) & (df['category'] == catname),
+                   'conserved_typicality'] = conserved_typicality
 
     return df

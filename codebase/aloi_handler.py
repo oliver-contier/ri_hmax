@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import os
+import pickle
 from os.path import abspath as abp
 from os.path import join as pjoin
 
@@ -11,7 +12,9 @@ from skimage import img_as_ubyte
 from skimage.exposure import equalize_adapthist
 
 from condor_handler import write_submission_file, exec_submission
+from hmax_handler import hmaxoutdir2df
 from preproc import add_yborder
+from typicality import add_typicalities
 
 
 def aloi_getpaths(csv_file='/home/contier/ri_hmax/aloi_selection.csv',
@@ -172,3 +175,21 @@ def aloi_writesubmit_hmax(prepfiles, perceptfiles, intactouts, perceptouts,
     exec_submission(submit_fpath=abp(submitf), cleanup=clean)
     print('Submitted ALOI prepped and percept files to condor for HMAXing with %s' % runscr)
     return hmaxinputs, hmaxoutputs
+
+
+def aloi_hmaxout2df_pickle(hmaxoutdir="/home/contier/ri_hmax/workdir/aloi/hmaxout",
+                           pickle_outfile="/home/contier/ri_hmax/workdir/aloi/hmax_df.pickle"):
+    """
+    Create pandas data frame containing hmax outputs for the selected stimuli from the ALOI library.
+    Compute typicalities and save resulting data frame as a pickle file.
+    """
+
+    # grab hmax output into data frame
+    df = hmaxoutdir2df(hmaxoutdir)
+    # compute typicalities and add to data frame
+    df = add_typicalities(df, avrg=False)
+
+    # save as pickle file
+    with open(pickle_outfile, 'wb') as f:
+        pickle.dump(df, f)
+    return None
