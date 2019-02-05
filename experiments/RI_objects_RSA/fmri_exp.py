@@ -19,10 +19,12 @@ def present_run(run_sequence,
                 escape_key='escape',
                 trigger_key='t',
                 stimsize=13,
+                stimpos=(0., 0.),
                 fixdur=.2,
                 stimdur=1.1,
                 skip_volumes=5,
-                shift_responselog_back=1):
+                shift_responselog_back=1,
+                end_padding_seconds=15):
     """
     Present one functional run.
 
@@ -76,9 +78,9 @@ def present_run(run_sequence,
     # Initiate  windows, stimuli, and alike
     event.Mouse(visible=False, win=window_instance)
     fixation = visual.ShapeStim(window_instance, size=1, lineWidth=5, closeShape=False, lineColor="white", units='deg',
-                                vertices=((0, -0.5), (0, 0.5), (0, 0), (-0.5, 0), (0.5, 0)))
+                                vertices=((0, -0.5), (0, 0.5), (0, 0), (-0.5, 0), (0.5, 0)), pos=stimpos)
     blank = visual.ShapeStim(window_instance, size=0, lineWidth=0, lineColor='black')
-    stim = visual.ImageStim(window_instance, size=stimsize, units='deg')
+    stim = visual.ImageStim(window_instance, size=stimsize, units='deg', pos=stimpos)
     escape_bool = False
     dummy_keys = None
 
@@ -86,6 +88,7 @@ def present_run(run_sequence,
     fix_rt = core.Clock()
     stim_rt = core.Clock()
     blank_rt = core.Clock()
+    padd_rt = core.Clock()
     global_onset_time = core.Clock()
     firsttrig_time = core.Clock()
     skipvol_time = core.Clock()
@@ -96,7 +99,7 @@ def present_run(run_sequence,
 
     # Wait for first scanner pulse.
     firsttrig_instr = visual.TextStim(window_instance, text='waiting for first scanner pulse',
-                                      color='white', height=1, units='deg')
+                                      color='white', height=1, units='deg', pos=stimpos)
     firsttrig_instr.draw()
     window_instance.flip()
     firsttrig = event.waitKeys(keyList=[trigger_key], timeStamped=firsttrig_time)  # firsttrig looks like [['t', 1.43]]
@@ -104,7 +107,7 @@ def present_run(run_sequence,
 
     # do nothing during first few scans.
     skipvol_instr = visual.TextStim(window_instance, text='dummy scans',
-                                    color='white', height=1, units='deg')
+                                    color='white', height=1, units='deg', pos=stimpos)
     skipvol_instr.draw()
     window_instance.flip()
     for i in range(skip_volumes - 1):
@@ -190,6 +193,14 @@ def present_run(run_sequence,
                 break
             # present runs
             escape_bool = _present_trials(trial_sequence)
+
+            # present nothing for 15 more seconds
+            if end_padding_seconds and not escape_bool:
+                padd_rt.reset()
+                while padd_rt.getTime() < end_padding_seconds:
+                    blank.draw()
+                    window_instance.flip()
+
             # add additional info to the results
             for trial_ in trial_sequence:
                 trial_['first_trigger'] = firsttrig[0][1]
@@ -214,6 +225,8 @@ def start_fmri_experiment(stimbasedir='./Stimuli',
                           outcsvdir='./fmri_logs',
                           n_rsa_runs=4,
                           reps_per_rsa_run=1,
+                          seconds_at_run_end=15,
+                          skipvolumes=5,
                           rsa_iti_min=.8,
                           rsa_iti_max=1.5,
                           rsa_iti_av=1.,
@@ -225,6 +238,7 @@ def start_fmri_experiment(stimbasedir='./Stimuli',
                           triggerkey='t',
                           startkey='space',
                           textsize=1.,
+                          stim_pos=(0., 0.),
                           mon_name='skyra_projector'):
     """
     """
@@ -238,17 +252,19 @@ def start_fmri_experiment(stimbasedir='./Stimuli',
     prep_dir = pjoin(stimbasedir, 'preprocessed')
     percept_dicts, intact_dicts = getstims_aloiselection(percepts_dir=perc_dir, preprocessed_dir=prep_dir)
 
-    mon, win = pick_monitor(mon_name)
-
     # draw gui to get exp_info
     if test:
         exp_info = mock_exp_info(which_session=2)
     else:
-        exp_info = draw_gui(exp_name='RI_RSA')
+        gui_fields = (('SubjectID', ''), ('MRDB-ID', ''), ('Gechlecht', ('maennlich', 'weiblich')),
+                      ('Alter', ' '), ('Rechtshaendig', True), ('Sitzung', (1, 2)))
+        exp_info = draw_gui(exp_name='RI_RSA', fields=gui_fields)
 
     # get session number from gui input
     session_int = int(exp_info['Sitzung'])
     assert session_int in [1, 2]
+
+    mon, win = pick_monitor(mon_name)
 
     # present very first instruction window
     start_instr(window_instance=win, text_size=textsize)
@@ -266,7 +282,9 @@ def start_fmri_experiment(stimbasedir='./Stimuli',
         # present one functional run
         escape_bool = present_run(run_seq, output_csv=csv_fname, window_instance=win,
                                   runtype='ri_only', response_key=responsekey, trigger_key=triggerkey,
-                                  stimdur=stim_dur, fixdur=fix_dur)
+                                  stimdur=stim_dur, fixdur=fix_dur, stimpos=stim_pos,
+                                  end_padding_seconds=seconds_at_run_end,
+                                  skip_volumes=skipvolumes)
 
         # quit experiment if escape key was pressed
         if escape_bool:
@@ -293,7 +311,9 @@ def start_fmri_experiment(stimbasedir='./Stimuli',
             # present this run
             escape_bool = present_run(run, output_csv=csv_fname, window_instance=win,
                                       runtype='ri_and_intact', response_key=responsekey, trigger_key=triggerkey,
-                                      stimdur=stim_dur, fixdur=fix_dur)
+                                      stimdur=stim_dur, fixdur=fix_dur, stimpos=stim_pos,
+                                      end_padding_seconds=seconds_at_run_end,
+                                      skip_volumes=skipvolumes)
             # break glm-run loop if escape key was pressed
             if escape_bool:
                 break
@@ -307,5 +327,5 @@ def start_fmri_experiment(stimbasedir='./Stimuli',
 
 
 if __name__ == '__main__':
-    start_fmri_experiment(reps_per_rsa_run=1, n_rsa_runs=4, n_glm_runs=3, stim_dur=1.1, mon_name='samsung_office',
-                          test=True)  # TODO: remove test=True when actually running
+    start_fmri_experiment(reps_per_rsa_run=1, n_rsa_runs=4, n_glm_runs=3, stim_dur=1.1, mon_name='skyra_projector',
+                          responsekey='4')

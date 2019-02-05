@@ -68,8 +68,8 @@ def pick_monitor(mon_name='samsung_office',
     elif mon_name == 'skyra_projector':
         # experimenter machine monitor has 24", so width 53 cm and same resolution
         res = (1920, 1080)
-        wid = 26.5
-        dist = 50.  # Reshanne claims, it's 100 cm ...
+        wid = 37
+        dist = 36.5
     else:
         raise IOError('could not find monitor with name %s' % mon_name)
     mon = monitors.Monitor(mon_name, width=wid, distance=dist)

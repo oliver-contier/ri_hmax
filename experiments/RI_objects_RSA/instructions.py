@@ -9,12 +9,13 @@ from psychopy import visual, event
 def show_instr(window_instance,
                message="Lorem ipsum dolor sit amet.",
                textsize=.8,
+               textpos=(0., 0.),
                unit='deg',
                continue_key='space'):
     """
     Generic function to show instructions until continue_key is pressed.
     """
-    textstim = visual.TextStim(window_instance, height=textsize, units=unit, wrapWidth=40)
+    textstim = visual.TextStim(window_instance, height=textsize, units=unit, wrapWidth=40, pos=textpos)
     textstim.setText(message)
     textstim.draw()
     window_instance.flip()
