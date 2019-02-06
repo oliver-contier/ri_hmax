@@ -194,17 +194,18 @@ def present_run(run_sequence,
             # present runs
             escape_bool = _present_trials(trial_sequence)
 
-            # present nothing for 15 more seconds
-            if end_padding_seconds and not escape_bool:
-                padd_rt.reset()
-                while padd_rt.getTime() < end_padding_seconds:
-                    blank.draw()
-                    window_instance.flip()
-
             # add additional info to the results
             for trial_ in trial_sequence:
                 trial_['first_trigger'] = firsttrig[0][1]
                 trial_['last_dummy_trigger'] = dummy_keys[0][1]
+
+        # present nothing for 15 more seconds
+        if end_padding_seconds and not escape_bool:
+            padd_rt.reset()
+            while padd_rt.getTime() < end_padding_seconds:
+                blank.draw()
+                window_instance.flip()
+
         # write csv file
         nested_dictlist_2csv(run_sequence, csv_fname=output_csv)
     # no nested loop necessary for runs wich present both stim types
@@ -215,6 +216,12 @@ def present_run(run_sequence,
         for trial_ in run_sequence:
             trial_['first_trigger'] = firsttrig[0][1]
             trial_['last_dummy_trigger'] = dummy_keys[0][1]
+        # present nothing for 15 more seconds
+        if end_padding_seconds and not escape_bool:
+            padd_rt.reset()
+            while padd_rt.getTime() < end_padding_seconds:
+                blank.draw()
+                window_instance.flip()
         # write output csv
         dictlist2csv(run_sequence, output_csv)
 
@@ -327,5 +334,5 @@ def start_fmri_experiment(stimbasedir='./Stimuli',
 
 
 if __name__ == '__main__':
-    start_fmri_experiment(reps_per_rsa_run=1, n_rsa_runs=4, n_glm_runs=3, stim_dur=1.1, mon_name='skyra_projector',
-                          responsekey='4')
+    start_fmri_experiment(reps_per_rsa_run=1, n_rsa_runs=4, n_glm_runs=3, stim_dur=1.1,
+                          mon_name='skyra_projector', responsekey='4')
