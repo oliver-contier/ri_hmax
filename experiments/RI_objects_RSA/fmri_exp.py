@@ -1,4 +1,5 @@
 #!/usr/bin/python
+# -*- coding: utf-8 -*-
 
 import os
 from os.path import join as pjoin
@@ -70,10 +71,11 @@ def present_run(run_sequence,
         can also be used outside this function to end an experiment altogether.
     """
 
-    # __run durations__
-    # # for stimdur=1.1, fixdur=.2, and average iti = 1.:
-    # - one all-stimuli run is about 10,4 minutes
-    # - one ri-only run is about 5,2 minutes
+    """__run durations__
+    for stimdur=1.1, fixdur=.2, and average iti = 1. (--> average trial duration 2.3 s):
+        - one all-stimuli run is about 10,4 minutes (~320 TRs of 2 seconds each, includes 15 seconds buffer at the end)
+        - one ri-only run is about 5,2 minutes (~164 TRs of 2 seconds each, includes 15 seconds buffer at the end)
+    """
 
     # Initiate  windows, stimuli, and alike
     event.Mouse(visible=False, win=window_instance)
@@ -172,6 +174,10 @@ def present_run(run_sequence,
                         trial_seq[idx_before]['accuracy'] = 1
                     elif trial_seq[idx_before]['trial_type'] == 'catch':
                         trial_seq[idx_before]['accuracy'] = 0
+
+            # TODO: remove this print statement later!
+            print( trial_seq[idx])
+
             # exit loop if escape key was pressed
             if responses:
                 for response in responses:
@@ -241,6 +247,7 @@ def start_fmri_experiment(stimbasedir='./Stimuli',
                           stim_dur=1.1,
                           fix_dur=.2,
                           test=False,
+                          skip_sess_1=False,
                           responsekey='1',
                           triggerkey='t',
                           startkey='space',
@@ -277,28 +284,29 @@ def start_fmri_experiment(stimbasedir='./Stimuli',
     start_instr(window_instance=win, text_size=textsize)
 
     # present runs which only contain ri percepts (used in both sessions)
-    for run in range(1, n_rsa_runs + 1):
-        # make a sequence for this subject
-        run_seq = make_rsa_run_sequence(percept_dicts, exp_info, reps_per_run=reps_per_rsa_run,
-                                        miniti=rsa_iti_min, maxiti=rsa_iti_max, aviti=rsa_iti_av)
-        # create csv file name
-        csv_fname = pjoin(outcsvdir, 'sub%s_session%s_rionly_run%i_fmri.csv'
-                          % (exp_info['SubjectID'], exp_info['Sitzung'], run))
-        # show inter-block instructions. Press 'space' before starting the scanner sequence.
-        next_block_instr(run_nr=run, window_instance=win, continuekey=startkey, text_size=textsize)
-        # present one functional run
-        escape_bool = present_run(run_seq, output_csv=csv_fname, window_instance=win,
-                                  runtype='ri_only', response_key=responsekey, trigger_key=triggerkey,
-                                  stimdur=stim_dur, fixdur=fix_dur, stimpos=stim_pos,
-                                  end_padding_seconds=seconds_at_run_end,
-                                  skip_volumes=skipvolumes)
+    if not skip_sess_1:
+        for run in range(1, n_rsa_runs + 1):
+            # make a sequence for this subject
+            run_seq = make_rsa_run_sequence(percept_dicts, exp_info, reps_per_run=reps_per_rsa_run,
+                                            miniti=rsa_iti_min, maxiti=rsa_iti_max, aviti=rsa_iti_av)
+            # create csv file name
+            csv_fname = pjoin(outcsvdir, 'sub%s_session%s_rionly_run%i_fmri.csv'
+                              % (exp_info['SubjectID'], exp_info['Sitzung'], run))
+            # show inter-block instructions. Press 'space' before starting the scanner sequence.
+            next_block_instr(run_nr=run, window_instance=win, continuekey=startkey, text_size=textsize)
+            # present one functional run
+            escape_bool = present_run(run_seq, output_csv=csv_fname, window_instance=win,
+                                      runtype='ri_only', response_key=responsekey, trigger_key=triggerkey,
+                                      stimdur=stim_dur, fixdur=fix_dur, stimpos=stim_pos,
+                                      end_padding_seconds=seconds_at_run_end,
+                                      skip_volumes=skipvolumes)
 
-        # quit experiment if escape key was pressed
-        if escape_bool:
-            print('experiment quit via escape key.')
-            ending_instr(window_instance=win, text_size=textsize)
-            win.close()
-            core.quit()
+            # quit experiment if escape key was pressed
+            if escape_bool:
+                print('experiment quit via escape key.')
+                ending_instr(window_instance=win, text_size=textsize)
+                win.close()
+                core.quit()
 
     # if this is session 2, present the runs with all stimuli (intact and ri percept)
     # which are loaded from efficiency optimization results.

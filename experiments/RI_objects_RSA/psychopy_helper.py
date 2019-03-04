@@ -1,4 +1,5 @@
 #!/usr/bin/python
+# -*- coding: utf-8 -*-
 
 """
 Contains miscellaneous helper functions that use psychopy.
@@ -38,7 +39,7 @@ def draw_gui(exp_name='RI_RSA',
     # add additional info to exp_info which doesn't come from GUI input
     exp_info = OrderedDict(exp_info)
     exp_info['exp_name'] = exp_name
-    exp_info['date'] = data.getDateStr()
+    exp_info['date'] = data.getDateStr().encode('utf-8')
 
     return exp_info
 
