@@ -1,3 +1,5 @@
+*.npy
+*.tar
 *.csv
 *.jpg
 *.png
@@ -14,6 +16,7 @@
 *.rds
 *.pickle
 *.idea
+cornet_rirsa/CORnet/
 results_design_opt*.json
 brms_analysis.ipynb
 bambi_analysis.ipynb
