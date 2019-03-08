@@ -74,7 +74,9 @@ def present_run(run_sequence,
     """__run durations__
     for stimdur=1.1, fixdur=.2, and average iti = 1. (--> average trial duration 2.3 s):
         - one all-stimuli run is about 10,4 minutes (~320 TRs of 2 seconds each, includes 15 seconds buffer at the end)
+            --> 330TRs to account for skip_volumes
         - one ri-only run is about 5,2 minutes (~164 TRs of 2 seconds each, includes 15 seconds buffer at the end)
+            --> 175TRs to account for skip_volumes
     """
 
     # Initiate  windows, stimuli, and alike
@@ -176,7 +178,7 @@ def present_run(run_sequence,
                         trial_seq[idx_before]['accuracy'] = 0
 
             # TODO: remove this print statement later!
-            print( trial_seq[idx])
+            print(trial_seq[idx])
 
             # exit loop if escape key was pressed
             if responses:
@@ -337,10 +339,10 @@ def start_fmri_experiment(stimbasedir='./Stimuli',
     ending_instr(window_instance=win, text_size=textsize)
     win.close()
     core.quit()
-
     return None
 
 
 if __name__ == '__main__':
     start_fmri_experiment(reps_per_rsa_run=1, n_rsa_runs=4, n_glm_runs=3, stim_dur=1.1,
-                          mon_name='skyra_projector', responsekey='4')
+                          mon_name='lin_projector', responsekey='1',
+                          textsize=.8)

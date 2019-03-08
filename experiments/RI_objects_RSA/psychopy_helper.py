@@ -51,7 +51,7 @@ def pick_monitor(mon_name='samsung_office',
     """
     Create a psychopy monitor and window instance depending on where you want to display the experiment.
     """
-    allowed = ('samsung_office', 'samsung_behavlab', 'soundproof_lab', 'skyra_projector')
+    allowed = ('samsung_office', 'samsung_behavlab', 'soundproof_lab', 'skyra_projector', 'lin_projector')
     if mon_name not in allowed:
         raise IOError('Could not find settings for mon : %s' % mon_name)
     if mon_name == 'samsung_office':
@@ -71,6 +71,10 @@ def pick_monitor(mon_name='samsung_office',
         res = (1920, 1080)
         wid = 37
         dist = 36.5
+    elif mon_name == 'lin_projector':
+        res = (1280, 1024)
+        wid = 26.5
+        dist = 60
     else:
         raise IOError('could not find monitor with name %s' % mon_name)
     mon = monitors.Monitor(mon_name, width=wid, distance=dist)
@@ -79,6 +83,7 @@ def pick_monitor(mon_name='samsung_office',
     win = visual.Window(monitor=mon, size=res, color=bgcolor, units='deg', screen=screen_index, fullscr=fullscreen)
 
     return mon, win
+
 
 
 def movemouse_xdotool(psychopy_mon,
