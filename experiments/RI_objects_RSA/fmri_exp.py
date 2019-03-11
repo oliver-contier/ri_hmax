@@ -108,6 +108,7 @@ def present_run(run_sequence,
     window_instance.flip()
     firsttrig = event.waitKeys(keyList=[trigger_key], timeStamped=firsttrig_time)  # firsttrig looks like [['t', 1.43]]
     global_onset_time.reset()
+    skipvol_time.reset()
 
     # do nothing during first few scans.
     skipvol_instr = visual.TextStim(window_instance, text='dummy scans',
@@ -176,9 +177,6 @@ def present_run(run_sequence,
                         trial_seq[idx_before]['accuracy'] = 1
                     elif trial_seq[idx_before]['trial_type'] == 'catch':
                         trial_seq[idx_before]['accuracy'] = 0
-
-            # TODO: remove this print statement later!
-            print(trial_seq[idx])
 
             # exit loop if escape key was pressed
             if responses:
