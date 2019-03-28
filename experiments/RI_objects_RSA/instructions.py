@@ -48,9 +48,11 @@ def part_two_instr(window_instance, continuekey='space', text_size=1.):
     This only occurs in session 2.
     """
     show_instr(window_instance=window_instance, textsize=text_size, unit='deg', continue_key=continuekey,
-               message="Als naechstes beginnt der zweite Teil unseres Experiments.\n"
-                       "Sie sehen nun sowohl simulierte Retinaimplantat-Bilder, als auch \n"
-                       "gewoehnliche, unveraenderte Objekte. Ihre Aufgabe bleibt dabei dieselbe.")
+               message="Als naechstes beginnt der zweite Teil\n"
+                       "unseres Experiments. Sie sehen nun sowohl\n"
+                       "simulierte Retinaimplantat-Bilder, als auch \n"
+                       "gewoehnliche, unveraenderte Objekte.\n"
+                       "Ihre Aufgabe bleibt dabei dieselbe.")
     return None
 
 

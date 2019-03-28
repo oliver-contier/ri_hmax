@@ -280,6 +280,7 @@ def start_fmri_experiment(stimbasedir='./Stimuli',
 
     mon, win = pick_monitor(mon_name)
 
+
     # present very first instruction window
     start_instr(window_instance=win, text_size=textsize)
 
